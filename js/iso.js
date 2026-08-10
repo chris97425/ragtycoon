@@ -93,11 +93,14 @@
   var EDGE = 'rgba(38,26,14,0.30)';
 
   /* Vertical gradient fill for a side face: lighter where the light catches
-     the top edge, darker at the base. Gives the chunky boxes real volume. */
+     the top edge, darker at the base. Gives the chunky boxes real volume.
+     Small faces (< 14 px tall on screen) use a flat fill — creating a
+     gradient per face per frame is the biggest frame-cost in the scene, and
+     tiny faces do not need the extra depth. */
   function gradQuad(ctx, pts, c, fTop, fBot) {
     var yTop = Math.min(pts[0].y, pts[1].y, pts[2].y, pts[3].y);
     var yBot = Math.max(pts[0].y, pts[1].y, pts[2].y, pts[3].y);
-    if (yBot - yTop < 2) { ctx.fillStyle = shade(c, (fTop + fBot) / 2); poly(ctx, pts); return; }
+    if (yBot - yTop < 14) { ctx.fillStyle = shade(c, (fTop + fBot) / 2); poly(ctx, pts); return; }
     var g = ctx.createLinearGradient(0, yTop, 0, yBot);
     g.addColorStop(0, shade(c, fTop));
     g.addColorStop(1, shade(c, fBot));
@@ -287,19 +290,28 @@
   }
 
   /* Soft contact shadow under a solid: a radial gradient ellipse, so it reads
-     as a real pool of shade rather than a flat disc. */
+     as a real pool of shade rather than a flat disc. The gradient is baked
+     into a sprite once and blitted, which is far cheaper than creating a
+     radial gradient per shadow per frame. */
+  var shadowSprite = null;
   function shadow(ctx, x, y, r, strength) {
     var p = project(x, y, 0.01);
     var a = r * TW * 1.41421, b = r * TH * 1.41421;
-    var s = strength == null ? 0.20 : strength;
-    var g = ctx.createRadialGradient(p.x, p.y, 1, p.x, p.y, Math.max(a, b));
-    g.addColorStop(0, 'rgba(30,50,20,' + s.toFixed(3) + ')');
-    g.addColorStop(0.7, 'rgba(30,50,20,' + (s * 0.6).toFixed(3) + ')');
-    g.addColorStop(1, 'rgba(30,50,20,0)');
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.ellipse(p.x, p.y, a, b, 0, 0, Math.PI * 2);
-    ctx.fill();
+    if (!shadowSprite) {
+      shadowSprite = document.createElement('canvas');
+      shadowSprite.width = 64; shadowSprite.height = 64;
+      var sc = shadowSprite.getContext('2d');
+      var g = sc.createRadialGradient(32, 32, 1, 32, 32, 31);
+      g.addColorStop(0, 'rgba(30,50,20,0.22)');
+      g.addColorStop(0.7, 'rgba(30,50,20,0.13)');
+      g.addColorStop(1, 'rgba(30,50,20,0)');
+      sc.fillStyle = g;
+      sc.beginPath(); sc.arc(32, 32, 31, 0, 6.2832); sc.fill();
+    }
+    var s = strength == null ? 1 : strength;
+    ctx.globalAlpha = s;
+    ctx.drawImage(shadowSprite, p.x - a, p.y - b, a * 2, b * 2);
+    ctx.globalAlpha = 1;
   }
 
   global.Iso = {

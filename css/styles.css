@@ -380,6 +380,79 @@ input[type="checkbox"].xp-check { position: fixed; opacity: 0; margin: 0; }
 }
 .modal-close:hover { background: linear-gradient(180deg, #fff, #f6f3ed); }
 
+/* ---------- the WMP-style narration player (bottom-left) ---------- */
+
+.wmp {
+  position: fixed; z-index: 26;
+  left: 10px; bottom: calc(var(--dock-h, 96px) + 8px);
+  width: 316px; max-width: calc(100vw - 20px);
+  background: var(--xp-panel);
+  border: 1px solid #003d74;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #dfdfdf,
+              inset -2px -2px #808080, inset 2px 2px #fff,
+              4px 4px 0 var(--shadow);
+  padding: 3px;
+  font-family: "Pixelated MS Sans Serif", Tahoma, Arial, sans-serif;
+}
+.wmp .xp-titlebar { margin: -3px -3px 0 -3px; }
+.wmp-body { padding: 7px 9px 9px; }
+#wmp-viz {
+  display: block; width: 100%; height: 64px;
+  background: #000;
+  border: 2px inset #7f9db9;
+  box-shadow: inset 1px 1px 3px rgba(0,0,0,0.6);
+}
+.wmp-track {
+  margin: 6px 1px 5px;
+  font-size: 11px; font-weight: bold; color: #0046d5;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.wmp-time-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.wmp-t {
+  font-size: 10.5px; font-weight: bold; color: #222;
+  background: #fff; border: 1px solid #7f9db9;
+  padding: 1px 4px; min-width: 34px; text-align: center;
+  box-shadow: inset 1px 1px 2px rgba(0,0,0,0.15);
+}
+.wmp-time-row input[type="range"] {
+  flex: 1; min-width: 0;
+  -webkit-appearance: none; appearance: none;
+  height: 14px; margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.wmp-time-row input[type="range"]::-webkit-slider-runnable-track {
+  height: 8px;
+  background: #fff;
+  border: 1px solid #7f9db9;
+  box-shadow: inset 1px 1px 2px rgba(0,0,0,0.25);
+}
+.wmp-time-row input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 11px; height: 21px; margin-top: -7px;
+  background: linear-gradient(180deg, #fff, #ecebe5 86%, #d8d0c4);
+  border: 1px solid #003c74;
+  box-shadow: inset 1px 1px #fff, inset -1px -1px #808080;
+}
+.wmp-time-row input[type="range"]::-moz-range-track {
+  height: 8px; background: #fff; border: 1px solid #7f9db9;
+}
+.wmp-time-row input[type="range"]::-moz-range-thumb {
+  width: 11px; height: 21px; border-radius: 0;
+  background: linear-gradient(180deg, #fff, #ecebe5 86%, #d8d0c4);
+  border: 1px solid #003c74;
+}
+.wmp-btns { display: flex; gap: 6px; align-items: center; }
+.wmp-btns .icon { width: 34px; height: 30px; font-size: 13px; min-width: 0; }
+#wmp-play { width: 44px; }
+
+@media (max-width: 600px) {
+  .wmp { width: 268px; }
+  .wmp-body { padding: 5px 7px 7px; }
+  #wmp-viz { height: 48px; }
+  .wmp-track { font-size: 10px; }
+}
+
 /* ---------- phone sheet ---------- */
 
 .sheet-handle {

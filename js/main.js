@@ -79,7 +79,10 @@
   }
 
   function resize() {
-    var dpr = Math.min(2, global.devicePixelRatio || 1);
+    /* Cap the backing resolution: at 2x a retina canvas has 4x the pixels to
+       fill, which is the dominant fill-rate cost. 1.5x is visually
+       indistinguishable on a phone and much cheaper on a desktop. */
+    var dpr = Math.min(1.5, global.devicePixelRatio || 1);
     viewW = global.innerWidth;
     viewH = global.innerHeight;
     canvas.width = Math.round(viewW * dpr);

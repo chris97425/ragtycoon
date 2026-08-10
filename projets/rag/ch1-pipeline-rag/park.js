@@ -1126,15 +1126,23 @@
     ctx.beginPath(); ctx.ellipse(p.x - 4, p.y - 11, 7, 5, 0, 0, 6.2832); ctx.fill();
   }
 
+  /* lamp halo is a baked sprite: a radial gradient per lamp per frame was
+     pure waste, dozens of lamps line the roads */
+  var lampHalo = null;
   function lamp(ctx, x, y) {
     Iso.cylinder(ctx, { x: x, y: y, r: 0.1, h: 2.4, color: '#4a5568', edge: false });
     var p = Iso.project(x, y, 2.4);
-    /* halo */
-    var g = ctx.createRadialGradient(p.x, p.y - 3, 1, p.x, p.y - 3, 16);
-    g.addColorStop(0, 'rgba(255,233,168,0.55)');
-    g.addColorStop(1, 'rgba(255,233,168,0)');
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.arc(p.x, p.y - 3, 16, 0, 6.2832); ctx.fill();
+    if (!lampHalo) {
+      lampHalo = document.createElement('canvas');
+      lampHalo.width = 40; lampHalo.height = 40;
+      var hc = lampHalo.getContext('2d');
+      var g = hc.createRadialGradient(20, 20, 1, 20, 20, 19);
+      g.addColorStop(0, 'rgba(255,233,168,0.55)');
+      g.addColorStop(1, 'rgba(255,233,168,0)');
+      hc.fillStyle = g;
+      hc.beginPath(); hc.arc(20, 20, 19, 0, 6.2832); hc.fill();
+    }
+    ctx.drawImage(lampHalo, p.x - 20, p.y - 23);
     ctx.fillStyle = '#ffe9a8';
     ctx.beginPath(); ctx.arc(p.x, p.y - 3, 5, 0, 6.2832); ctx.fill();
   }

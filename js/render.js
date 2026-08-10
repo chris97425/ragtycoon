@@ -89,6 +89,38 @@
 
   /* ---- ground ------------------------------------------------------------ */
 
+  /* The grass checker is pre-rendered once into a tile (8x8 grid units,
+     two cells each way) and blitted across the visible area every frame.
+     Drawing hundreds of quads per frame was the single biggest cost in the
+     scene; a few dozen drawImage calls are nearly free. */
+  var groundTile = null;
+  var GROUND_TILE = 8;
+
+  function buildGroundTile() {
+    groundTile = document.createElement('canvas');
+    var s = 3;  /* oversample so the tile stays crisp when zoomed in */
+    var w = (GROUND_TILE + GROUND_TILE) * Iso.TW * s;
+    var h = (GROUND_TILE + GROUND_TILE) * Iso.TH * s;
+    groundTile.width = Math.ceil(w);
+    groundTile.height = Math.ceil(h);
+    var c = groundTile.getContext('2d');
+    c.scale(s, s);
+    c.fillStyle = C.grass;
+    Iso.quad(c, 0, 0, GROUND_TILE, GROUND_TILE, 0);
+    for (var x = 0; x < GROUND_TILE; x += 4) {
+      for (var y = 0; y < GROUND_TILE; y += 4) {
+        if ((Math.round(x / 4 + y / 4) & 1)) continue;
+        var tint = Iso.hash2(x, y, 31) * 0.05 - 0.025;
+        c.fillStyle = Iso.mix(C.grassAlt, C.grass, 0.5 + tint * 10);
+        Iso.quad(c, x, y, 4, 4, 0);
+      }
+    }
+  }
+
+  /* NOTE: a full-scene infrastructure sprite was tried (lots+roads baked once,
+     one blit per frame). It LOST to direct drawing: the single blit covers
+     the whole viewport every frame (full fill-rate), while roads only cover a
+     few percent of the pixels. Direct drawing stays. */
   function drawGround(ctx, cam) {
     var B = Park.GROUND;
 
@@ -105,19 +137,22 @@
       lo.x = Math.min(lo.x, g.x); hi.x = Math.max(hi.x, g.x);
       lo.y = Math.min(lo.y, g.y); hi.y = Math.max(hi.y, g.y);
     });
-    var x0 = Math.max(B.x0, Math.floor((lo.x - 6) / 4) * 4);
-    var x1 = Math.min(B.x1, hi.x + 6);
-    var y0 = Math.max(B.y0, Math.floor((lo.y - 6) / 4) * 4);
-    var y1 = Math.min(B.y1, hi.y + 6);
 
-    /* checker with a subtle per-cell tint variation so the lawn reads as
-       mown stripes rather than flat plastic */
-    for (var x = x0; x < x1; x += 4) {
-      for (var y = y0; y < y1; y += 4) {
-        if ((Math.round(x / 4 + y / 4) & 1)) continue;
-        var tint = Iso.hash2(x, y, 31) * 0.05 - 0.025;
-        ctx.fillStyle = Iso.mix(C.grassAlt, C.grass, 0.5 + tint * 10);
-        Iso.quad(ctx, x, y, 4, 4, 0);
+    /* blit the pre-rendered tile across the visible ground.
+       We are already inside the world transform (translate+scale), so each
+       tile is drawn at its world position at its world-projected size. */
+    if (!groundTile) buildGroundTile();
+    var T = GROUND_TILE;
+    var tilePxW = (T + T) * Iso.TW;
+    var tilePxH = (T + T) * Iso.TH;
+    var x0 = Math.max(B.x0, Math.floor((lo.x - 2) / T) * T);
+    var x1 = Math.min(B.x1, hi.x + 2);
+    var y0 = Math.max(B.y0, Math.floor((lo.y - 2) / T) * T);
+    var y1 = Math.min(B.y1, hi.y + 2);
+    for (var tx = x0; tx < x1; tx += T) {
+      for (var ty = y0; ty < y1; ty += T) {
+        var p = Iso.project(tx, ty, 0);
+        ctx.drawImage(groundTile, p.x, p.y, tilePxW, tilePxH);
       }
     }
 
@@ -420,6 +455,20 @@
   var FONT_TAG = 'bold 12.5px "Trebuchet MS", Verdana, sans-serif';
   var TAG_PAD = 10;
 
+  /* measureText is surprisingly expensive; cache widths per text+font so the
+     label layout does not re-measure the same strings every frame. */
+  var textWidthCache = {};
+  function textWidth(ctx, text, font) {
+    var key = font + '|' + text;
+    var w = textWidthCache[key];
+    if (w == null) {
+      ctx.font = font;
+      w = ctx.measureText(text).width;
+      textWidthCache[key] = w;
+    }
+    return w;
+  }
+
   function rectsOverlap(a, b) {
     return a.x < b.x + b.w && a.x + a.w > b.x &&
            a.y < b.y + b.h && a.y + a.h > b.y;
@@ -435,8 +484,7 @@
     var w = Iso.project(p.x, p.y, p.z + 1.9);
     var sx = w.x * cam.scale + cam.ox;
     var sy = w.y * cam.scale + cam.oy;
-    ctx.font = FONT_TAG;
-    var tw = ctx.measureText(text).width + 20;
+    var tw = textWidth(ctx, text, FONT_TAG) + 20;
 
     return {
       x: sx - tw / 2, y: sy - 11, w: tw, h: 22,
@@ -517,7 +565,7 @@
 
       var on = st.id === activeId;
       var text = (i + 1) + '. ' + st.name;
-      var tw = ctx.measureText(text).width + 16;
+      var tw = textWidth(ctx, text, FONT_LABEL) + 16;
 
       /* try the home spot, then a few nudges up and down, never overlapping */
       var rect = { x: sx - tw / 2, y: sy - 10, w: tw, h: 20 };
@@ -671,13 +719,17 @@
       var pr = props[j];
       items.push({ k: pr.x + pr.y + 0.4, p: pr, kind: 'prop' });
     }
-    for (var g = 0; g < Park.guests.length; g++) {
-      var G = Park.guests[g];
-      var d = (G.offset + clock * G.speed) % G.route.total;
-      var raw = G.route.at(d);
-      /* walk the shoulder, not the middle of the road */
-      var gp = { x: raw.x - raw.dy * G.side, y: raw.y + raw.dx * G.side };
-      items.push({ k: gp.x + gp.y + 0.5, kind: 'guest', gp: gp, G: G, ph: clock * 5 + g });
+    /* guests only earn their draw when they are big enough to see: below
+        half zoom they are a handful of pixels, skip them entirely */
+    if (cam.scale >= 0.45) {
+      for (var g = 0; g < Park.guests.length; g++) {
+        var G = Park.guests[g];
+        var d = (G.offset + clock * G.speed) % G.route.total;
+        var raw = G.route.at(d);
+        /* walk the shoulder, not the middle of the road */
+        var gp = { x: raw.x - raw.dy * G.side, y: raw.y + raw.dx * G.side };
+        items.push({ k: gp.x + gp.y + 0.5, kind: 'guest', gp: gp, G: G, ph: clock * 5 + g });
+      }
     }
     var cp = Tour.cartPosition();
     items.push({ k: cp.x + cp.y + 0.6, kind: 'cart', cp: cp });

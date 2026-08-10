@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Chapitre 1 · Le pipeline RAG — RAGTycoon</title>
 <meta name="description" content="Une visite guidée isométrique de l'usine RAG. Un chariot porte un document d'une pile de fichiers bruts jusqu'à une réponse citée et évaluée, en s'arrêtant aux vingt-deux étapes du chemin." />
-<link rel="stylesheet" href="../../../css/xp.css?v=4" />
-<link rel="stylesheet" href="../../../css/styles.css?v=4" />
+<link rel="stylesheet" href="../../../css/xp.css?v=5" />
+<link rel="stylesheet" href="../../../css/styles.css?v=5" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%232f3945'/%3E%3Crect x='9' y='9' width='14' height='14' rx='2' fill='%233fb5a0'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -114,10 +114,34 @@
     <div class="group toggles">
       <label class="toggle"><input id="follow" type="checkbox" checked /><span>Suivre</span></label>
       <label class="toggle"><input id="labels" type="checkbox" checked /><span>Panneaux</span></label>
-      <button id="btn-sound" class="icon" title="Son de la narration (lecture automatique à chaque arrêt)">🔊</button>
     </div>
   </div>
 </footer>
+
+<!-- Lecteur de narration, style Windows Media Player XP : bloc en bas à gauche,
+     visualiseur « nuage de toutes les couleurs », pause / retour début / curseur. -->
+<div class="wmp" id="wmp">
+  <div class="xp-titlebar">
+    <span class="xp-title-icon">🎵</span>
+    <span>Narration — Windows Media</span>
+    <span class="xp-title-spacer"></span>
+    <span class="xp-tb-btn">_</span><span class="xp-tb-btn">×</span>
+  </div>
+  <div class="wmp-body">
+    <canvas id="wmp-viz" width="300" height="64"></canvas>
+    <div class="wmp-track" id="wmp-track">Chargement…</div>
+    <div class="wmp-time-row">
+      <span class="wmp-t" id="wmp-cur">0:00</span>
+      <input type="range" id="wmp-slider" min="0" max="1000" value="0" step="1" />
+      <span class="wmp-t" id="wmp-dur">0:00</span>
+    </div>
+    <div class="wmp-btns">
+      <button id="wmp-restart" class="icon" title="Revenir au début">⏮</button>
+      <button id="wmp-play" class="icon" title="Lecture / pause">▶</button>
+      <button id="wmp-mute" class="icon" title="Son activé / coupé">🔊</button>
+    </div>
+  </div>
+</div>
 
 <div class="modal" id="about" hidden>
   <div class="modal-card">
@@ -165,77 +189,195 @@
   </div>
 </div>
 
-<script src="../../../js/iso.js?v=4"></script>
-<script src="park.js?v=4"></script>
-<script src="../../../js/tour.js?v=4"></script>
-<script src="../../../js/render.js?v=4"></script>
-<script src="../../../js/ui.js?v=4"></script>
-<script src="../../../js/main.js?v=4"></script>
+<script src="../../../js/iso.js?v=5"></script>
+<script src="park.js?v=5"></script>
+<script src="../../../js/tour.js?v=5"></script>
+<script src="../../../js/render.js?v=5"></script>
+<script src="../../../js/ui.js?v=5"></script>
+<script src="../../../js/main.js?v=5"></script>
 <script>
-/* Narration audio : chaque arrêt joue son commentaire automatiquement.
-   Les navigateurs bloquent l'autoplay sans interaction : on tente de jouer
-   dès qu'un arrêt est expliqué, et le premier geste de l'utilisateur (clic,
-   touche, toucher) débloque l'audio pour la suite. */
+/* Lecteur de narration style Windows Media Player XP.
+   - Lecture automatique de l'arrêt courant quand le train s'arrête
+   - Visualiseur « nuage de toutes les couleurs » (spectre multicolore)
+   - Boutons : revenir au début / lecture-pause / son coupé
+   - Curseur de position + temps écoulé / durée
+   Les navigateurs bloquent l'autoplay : le premier geste débloque. */
 (function () {
   'use strict';
+
   var audio = document.createElement('audio');
   audio.preload = 'auto';
   document.body.appendChild(audio);
 
   var soundOn = true;
-  var waitingForGesture = false;
-  var btn = document.getElementById('btn-sound');
   var currentSrc = null;
 
-  function paint() {
-    btn.textContent = soundOn ? '🔊' : '🔇';
-    btn.title = soundOn
-      ? 'Son de la narration : actif (clique pour couper)'
-      : 'Son de la narration : coupé (clique pour activer)';
+  var el = {
+    track: document.getElementById('wmp-track'),
+    cur: document.getElementById('wmp-cur'),
+    dur: document.getElementById('wmp-dur'),
+    slider: document.getElementById('wmp-slider'),
+    play: document.getElementById('wmp-play'),
+    restart: document.getElementById('wmp-restart'),
+    mute: document.getElementById('wmp-mute'),
+    viz: document.getElementById('wmp-viz')
+  };
+  var vizCtx = el.viz.getContext('2d');
+
+  /* --- analyse audio pour le visualiseur (créé au premier geste) --- */
+  var analyser = null;
+  var freqData = null;
+  function ensureAnalyser() {
+    if (analyser) return;
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      var ctx = new AC();
+      var src = ctx.createMediaElementSource(audio);
+      analyser = ctx.createAnalyser();
+      analyser.fftSize = 128;
+      src.connect(analyser);
+      analyser.connect(ctx.destination);
+      freqData = new Uint8Array(analyser.frequencyBinCount);
+    } catch (e) { /* pas d'analyse : le nuage reste décoratif */ }
   }
 
+  /* --- contrôles --- */
+  function fmt(s) {
+    s = Math.max(0, Math.floor(s || 0));
+    var m = Math.floor(s / 60), sec = s % 60;
+    return m + ':' + (sec < 10 ? '0' : '') + sec;
+  }
+
+  el.play.addEventListener('click', function () {
+    if (audio.paused) {
+      ensureAnalyser();
+      audio.play();
+    } else {
+      audio.pause();
+    }
+  });
+  el.restart.addEventListener('click', function () {
+    if (!audio.src) return;
+    audio.currentTime = 0;
+    ensureAnalyser();
+    audio.play();
+  });
+  el.mute.addEventListener('click', function () {
+    soundOn = !soundOn;
+    el.mute.textContent = soundOn ? '🔊' : '🔇';
+    el.mute.title = soundOn ? 'Son activé' : 'Son coupé';
+    if (!soundOn) audio.pause();
+  });
+
+  var dragging = false;
+  el.slider.addEventListener('pointerdown', function () { dragging = true; });
+  el.slider.addEventListener('pointerup', function () { dragging = false; });
+  el.slider.addEventListener('input', function () {
+    if (!audio.duration) return;
+    audio.currentTime = (el.slider.value / 1000) * audio.duration;
+  });
+
+  audio.addEventListener('timeupdate', function () {
+    if (dragging || !audio.duration) return;
+    el.slider.value = Math.round((audio.currentTime / audio.duration) * 1000);
+    el.cur.textContent = fmt(audio.currentTime);
+  });
+  audio.addEventListener('loadedmetadata', function () {
+    el.dur.textContent = fmt(audio.duration);
+  });
+  audio.addEventListener('ended', function () {
+    el.play.textContent = '▶';
+    el.slider.value = 0;
+    el.cur.textContent = '0:00';
+  });
+  audio.addEventListener('play', function () { el.play.textContent = '⏸'; });
+  audio.addEventListener('pause', function () { el.play.textContent = '▶'; });
+
+  /* --- lecture automatique à chaque arrêt --- */
   function playFor(stopId) {
     if (!soundOn || !stopId) return;
     var src = 'audio/stop-' + stopId + '.mp3';
     if (src === currentSrc && !audio.paused) return;
     currentSrc = src;
+    var stop = Park.stopById[stopId];
+    el.track.textContent = (stop ? stop.name + ' — ' : '') + 'Arrêt ' +
+      (Park.stops.indexOf(stop) + 1) + '/' + Park.stops.length;
     audio.src = src;
+    ensureAnalyser();
     var p = audio.play();
-    if (p && p.catch) {
-      p.catch(function () {
-        /* autoplay bloqué : on attend le premier geste */
-        waitingForGesture = true;
-      });
-    }
+    if (p && p.catch) p.catch(function () { /* attend le premier geste */ });
   }
 
-  /* quand le tour atteint un arrêt, lancer sa narration */
   Tour.on(function (name, id) {
     if (name === 'stage') playFor(id);
   });
 
-  /* premier geste utilisateur : débloque l'audio (autoplay policy) */
   function unlock() {
-    if (!waitingForGesture) return;
-    waitingForGesture = false;
-    var s = Tour.state;
-    playFor(s.stage);
+    ensureAnalyser();
+    if (audio.src && audio.paused && soundOn) {
+      var p = audio.play();
+      if (p && p.catch) p.catch(function () {});
+    }
   }
   ['pointerdown', 'keydown', 'touchend'].forEach(function (ev) {
     document.addEventListener(ev, unlock, { passive: true });
   });
 
-  btn.addEventListener('click', function () {
-    soundOn = !soundOn;
-    paint();
-    if (!soundOn) { audio.pause(); currentSrc = null; }
-    else {
-      waitingForGesture = false;
-      playFor(Tour.state.stage);
-    }
-  });
+  /* --- visualiseur « nuage de toutes les couleurs » --- */
+  var BARS = 48;
+  /* couleurs pré-calculées une seule fois (pas de recalcul par frame) */
+  var RAINBOW = [];
+  function rainbow(i, n) {
+    var t = i / n;
+    var r, g, b;
+    if (t < 1/6) { r = 255; g = Math.round(255 * t * 6); b = 0; }
+    else if (t < 2/6) { r = Math.round(255 * (1 - (t-1/6)*6)); g = 255; b = 0; }
+    else if (t < 3/6) { r = 0; g = 255; b = Math.round(255 * (t-2/6)*6); }
+    else if (t < 4/6) { r = 0; g = Math.round(255 * (1-(t-3/6)*6)); b = 255; }
+    else if (t < 5/6) { r = Math.round(255 * (t-4/6)*6); g = 0; b = 255; }
+    else { r = 255; g = 0; b = Math.round(255 * (1-(t-5/6)*6)); }
+    return 'rgb(' + r + ',' + g + ',' + b + ')';
+  }
+  for (var ri = 0; ri < BARS; ri++) RAINBOW.push(rainbow(ri, BARS));
 
-  paint();
+  var vizT = 0;
+  function drawViz() {
+    requestAnimationFrame(drawViz);
+    var W = el.viz.width, H = el.viz.height;
+    vizCtx.fillStyle = '#000';
+    vizCtx.fillRect(0, 0, W, H);
+    vizT += 0.02;
+
+    var playing = !audio.paused && !audio.ended && audio.currentTime > 0;
+    var vals = null;
+    if (analyser && freqData && playing) {
+      analyser.getByteFrequencyData(freqData);
+      vals = freqData;
+    }
+
+    var bw = W / BARS;
+    for (var i = 0; i < BARS; i++) {
+      var v;
+      if (vals) {
+        var idx = Math.floor(i * vals.length / BARS);
+        v = vals[idx] / 255;
+        /* léger lissage pour l'effet « nuage » */
+        v = 0.15 + v * 0.85;
+      } else {
+        /* veille : les barres respirent doucement */
+        v = 0.08 + 0.12 * Math.abs(Math.sin(vizT * 2 + i * 0.45));
+      }
+      var h = Math.max(2, v * (H - 4));
+      var x = i * bw + 0.5;
+      vizCtx.fillStyle = RAINBOW[i];
+      vizCtx.fillRect(x, H - h, bw - 1, h);
+      /* reflet clair en haut de la barre */
+      vizCtx.fillStyle = 'rgba(255,255,255,0.35)';
+      vizCtx.fillRect(x, H - h, bw - 1, Math.max(1, h * 0.12));
+    }
+  }
+  drawViz();
 })();
 </script>
 </body>
