@@ -711,16 +711,53 @@
     /* --- build the depth sorted list --- */
     var items = [];
 
+    /* ---- viewport culling ------------------------------------------------
+       A building whose projected bounding box does not touch the screen is
+       skipped entirely. At 1x zoom that is roughly half the park: skipping
+       their tens of boxes per frame is the biggest single frame saving left
+       after the ground tile. The box test is conservative (a building that
+       covers the whole screen keeps all its corners off-screen but still
+       intersects), so nothing visible is ever dropped. */
+    var viewW = canvas.width / cam.dpr, viewH = canvas.height / cam.dpr;
+    var MARGIN = 90; /* px: room for roofs, shadows and halos */
+    function onScreen(pts) {
+      var minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+      for (var q = 0; q < pts.length; q++) {
+        var px = pts[q].x * cam.scale + cam.ox;
+        var py = pts[q].y * cam.scale + cam.oy;
+        if (px < minX) minX = px;
+        if (px > maxX) maxX = px;
+        if (py < minY) minY = py;
+        if (py > maxY) maxY = py;
+      }
+      return maxX >= -MARGIN && minX <= viewW + MARGIN &&
+             maxY >= -MARGIN && minY <= viewH + MARGIN;
+    }
+
     for (var i = 0; i < Park.buildings.length; i++) {
       var b = Park.buildings[i];
+      /* buildings have no h field (their height lives inside draw()); using a
+         generous 8 keeps the test conservative — a tall roof can only make
+         the box bigger, never smaller, so nothing visible is dropped */
+      var h = 8;
+      var bpts = [
+        Iso.project(b.x, b.y, 0), Iso.project(b.x + b.w, b.y, 0),
+        Iso.project(b.x, b.y + b.d, 0), Iso.project(b.x + b.w, b.y + b.d, 0),
+        Iso.project(b.x + b.w / 2, b.y + b.d / 2, h)
+      ];
+      if (!onScreen(bpts)) continue;
       items.push({ k: (b.x + b.w) + (b.y + b.d), b: b, kind: 'building' });
     }
     for (var j = 0; j < props.length; j++) {
       var pr = props[j];
+      var pp = Iso.project(pr.x, pr.y, 0);
+      var sp = { x: pp.x * cam.scale + cam.ox, y: pp.y * cam.scale + cam.oy };
+      if (sp.x < -MARGIN || sp.x > viewW + MARGIN || sp.y < -MARGIN || sp.y > viewH + MARGIN) continue;
       items.push({ k: pr.x + pr.y + 0.4, p: pr, kind: 'prop' });
     }
     /* guests only earn their draw when they are big enough to see: below
-        half zoom they are a handful of pixels, skip them entirely */
+        half zoom they are a handful of pixels, skip them entirely. They are
+       also culled off-screen like everything else. */
     if (cam.scale >= 0.45) {
       for (var g = 0; g < Park.guests.length; g++) {
         var G = Park.guests[g];
@@ -728,6 +765,9 @@
         var raw = G.route.at(d);
         /* walk the shoulder, not the middle of the road */
         var gp = { x: raw.x - raw.dy * G.side, y: raw.y + raw.dx * G.side };
+        var gpr = Iso.project(gp.x, gp.y, 0);
+        var gs = { x: gpr.x * cam.scale + cam.ox, y: gpr.y * cam.scale + cam.oy };
+        if (gs.x < -MARGIN || gs.x > viewW + MARGIN || gs.y < -MARGIN || gs.y > viewH + MARGIN) continue;
         items.push({ k: gp.x + gp.y + 0.5, kind: 'guest', gp: gp, G: G, ph: clock * 5 + g });
       }
     }

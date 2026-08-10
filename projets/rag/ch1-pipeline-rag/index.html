@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Chapitre 1 · Le pipeline RAG — RAGTycoon</title>
 <meta name="description" content="Une visite guidée isométrique de l'usine RAG. Un chariot porte un document d'une pile de fichiers bruts jusqu'à une réponse citée et évaluée, en s'arrêtant aux vingt-deux étapes du chemin." />
-<link rel="stylesheet" href="../../../css/xp.css?v=5" />
-<link rel="stylesheet" href="../../../css/styles.css?v=5" />
+<link rel="stylesheet" href="../../../css/xp.css?v=6" />
+<link rel="stylesheet" href="../../../css/styles.css?v=6" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%232f3945'/%3E%3Crect x='9' y='9' width='14' height='14' rx='2' fill='%233fb5a0'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -189,12 +189,12 @@
   </div>
 </div>
 
-<script src="../../../js/iso.js?v=5"></script>
-<script src="park.js?v=5"></script>
-<script src="../../../js/tour.js?v=5"></script>
-<script src="../../../js/render.js?v=5"></script>
-<script src="../../../js/ui.js?v=5"></script>
-<script src="../../../js/main.js?v=5"></script>
+<script src="../../../js/iso.js?v=6"></script>
+<script src="park.js?v=6"></script>
+<script src="../../../js/tour.js?v=6"></script>
+<script src="../../../js/render.js?v=6"></script>
+<script src="../../../js/ui.js?v=6"></script>
+<script src="../../../js/main.js?v=6"></script>
 <script>
 /* Lecteur de narration style Windows Media Player XP.
    - Lecture automatique de l'arrêt courant quand le train s'arrête
@@ -249,11 +249,28 @@
     return m + ':' + (sec < 10 ? '0' : '') + sec;
   }
 
+  var playRetries = 0;
+  function tryPlay() {
+    var p = audio.play();
+    if (p && p.catch) p.catch(function () {
+      /* autoplay pas encore débloqué (le train avance sans geste utilisateur) :
+         on retente pendant 6 s — le premier clic/touche débloque et la piste
+         démarre enfin. Sans ce filet, la narration « restait muette » d'un
+         arrêt à l'autre. */
+      if (playRetries < 12) {
+        playRetries++;
+        setTimeout(tryPlay, 500);
+      }
+    });
+  }
+
   el.play.addEventListener('click', function () {
     if (audio.paused) {
       ensureAnalyser();
-      audio.play();
+      playRetries = 0;
+      tryPlay();
     } else {
+      playRetries = 99; /* pause manuelle : annule les retries en cours */
       audio.pause();
     }
   });
@@ -261,13 +278,15 @@
     if (!audio.src) return;
     audio.currentTime = 0;
     ensureAnalyser();
-    audio.play();
+    playRetries = 0;
+    tryPlay();
   });
   el.mute.addEventListener('click', function () {
     soundOn = !soundOn;
     el.mute.textContent = soundOn ? '🔊' : '🔇';
     el.mute.title = soundOn ? 'Son activé' : 'Son coupé';
-    if (!soundOn) audio.pause();
+    /* couper le son SEULEMENT : la lecture continue, comme WMP */
+    audio.muted = !soundOn;
   });
 
   var dragging = false;
@@ -296,7 +315,9 @@
 
   /* --- lecture automatique à chaque arrêt --- */
   function playFor(stopId) {
-    if (!soundOn || !stopId) return;
+    /* les stations sans narration (ex. retour du camion « newbatch »)
+       n'ont pas de fichier audio : on les ignore, sinon 404 + piste morte */
+    if (!stopId || !Park.stopById[stopId]) return;
     var src = 'audio/stop-' + stopId + '.mp3';
     if (src === currentSrc && !audio.paused) return;
     currentSrc = src;
@@ -305,8 +326,8 @@
       (Park.stops.indexOf(stop) + 1) + '/' + Park.stops.length;
     audio.src = src;
     ensureAnalyser();
-    var p = audio.play();
-    if (p && p.catch) p.catch(function () { /* attend le premier geste */ });
+    playRetries = 0;
+    tryPlay();
   }
 
   Tour.on(function (name, id) {
@@ -315,9 +336,8 @@
 
   function unlock() {
     ensureAnalyser();
-    if (audio.src && audio.paused && soundOn) {
-      var p = audio.play();
-      if (p && p.catch) p.catch(function () {});
+    if (audio.src && audio.paused && soundOn && playRetries < 99) {
+      tryPlay();
     }
   }
   ['pointerdown', 'keydown', 'touchend'].forEach(function (ev) {
