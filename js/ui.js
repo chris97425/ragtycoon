@@ -116,11 +116,62 @@
     el.tip.innerHTML = '<b>Astuce Tycoon :</b> ' + stop.tip;
     el.hudNote.textContent = ACT_NAME[stop.act] || '';
 
+    /* 🛠 outillage open source + 📚 sources, spécifiques à l'arrêt.
+       TECHNOS est fourni par le chapitre (technos.js) ; sans lui, on
+       n'affiche rien et le guide reste inchangé. */
+    renderTech(stop);
+
     var chips = el.stopList.children;
     for (var i = 0; i < chips.length; i++) {
       chips[i].classList.toggle('on', chips[i].dataset.id === stop.id);
       chips[i].classList.toggle('seen', Tour.seen(chips[i].dataset.id));
     }
+  }
+
+  function renderTech(stop) {
+    var sec = $('ui-toolsSec'), refsSec = $('ui-refsSec');
+    if (!sec || !global.TECHNOS) return;
+    var d = global.TECHNOS[stop.id];
+    if (!d) { sec.hidden = true; refsSec.hidden = true; return; }
+
+    var ul = $('ui-tools');
+    ul.innerHTML = '';
+    (d.tools || []).forEach(function (t) {
+      var li = document.createElement('li');
+      var b = document.createElement('b');
+      b.textContent = t.n;
+      li.appendChild(b);
+      if (t.u) {
+        var a = document.createElement('a');
+        a.href = t.u; a.target = '_blank'; a.rel = 'noopener';
+        a.textContent = '↗ ' + t.u.replace(/^https?:\/\/(www\.)?/, '');
+        li.appendChild(a);
+      }
+      if (t.d) {
+        var dd = document.createElement('span');
+        dd.className = 'd'; dd.textContent = t.d;
+        li.appendChild(dd);
+      }
+      ul.appendChild(li);
+    });
+    sec.hidden = !(d.tools && d.tools.length);
+
+    var ur = $('ui-refs');
+    ur.innerHTML = '';
+    (d.refs || []).forEach(function (r) {
+      var li = document.createElement('li');
+      var a = document.createElement('a');
+      a.href = r.u; a.target = '_blank'; a.rel = 'noopener';
+      a.textContent = '↗ ' + r.t;
+      li.appendChild(a);
+      if (r.d) {
+        var dd = document.createElement('span');
+        dd.className = 'd'; dd.textContent = r.d;
+        li.appendChild(dd);
+      }
+      ur.appendChild(li);
+    });
+    refsSec.hidden = !(d.refs && d.refs.length);
   }
 
   function unpin() {

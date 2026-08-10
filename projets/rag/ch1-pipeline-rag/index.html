@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Chapitre 1 · Le pipeline RAG — RAGTycoon</title>
 <meta name="description" content="Une visite guidée isométrique de l'usine RAG. Un chariot porte un document d'une pile de fichiers bruts jusqu'à une réponse citée et évaluée, en s'arrêtant aux vingt-deux étapes du chemin." />
-<link rel="stylesheet" href="../../../css/xp.css?v=6" />
-<link rel="stylesheet" href="../../../css/styles.css?v=6" />
+<link rel="stylesheet" href="../../../css/xp.css?v=7" />
+<link rel="stylesheet" href="../../../css/styles.css?v=7" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%232f3945'/%3E%3Crect x='9' y='9' width='14' height='14' rx='2' fill='%233fb5a0'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -80,6 +80,16 @@
       <button id="btn-unpin" class="link">Suivre le chariot à nouveau</button>
     </div>
 
+    <section class="sec tools-sec" id="ui-toolsSec" hidden>
+      <h3>🛠 Outillage open source <span class="hint">pour construire ce bloc</span></h3>
+      <ul class="tool-list" id="ui-tools"></ul>
+    </section>
+
+    <section class="sec refs-sec" id="ui-refsSec" hidden>
+      <h3>📚 Pour aller plus loin <span class="hint">articles et sources vérifiées</span></h3>
+      <ul class="ref-list" id="ui-refs"></ul>
+    </section>
+
     <section class="sec">
       <h3>Tout le parcours <span class="hint">clique sur un arrêt pour t'y rendre</span></h3>
       <div class="stop-list" id="ui-stopList"></div>
@@ -143,6 +153,22 @@
   </div>
 </div>
 
+<!-- Mon parcours : chaque arrêt avec sa case « j'ai compris », enregistrée
+     dans le localStorage pour ne jamais être perdue. -->
+<div class="trail" id="trail">
+  <div class="xp-titlebar">
+    <span class="xp-title-icon">📋</span>
+    <span>Mon parcours</span>
+    <span class="xp-title-spacer"></span>
+    <span class="trail-count" id="trail-count">0 / 22</span>
+    <span class="xp-tb-btn">_</span><span class="xp-tb-btn">×</span>
+  </div>
+  <div class="trail-body" id="trail-body">
+    <p class="trail-hint">Coche chaque arrêt quand tu l'as compris. Ta progression reste enregistrée sur cet appareil.</p>
+    <ul class="trail-list" id="trail-list"></ul>
+  </div>
+</div>
+
 <div class="modal" id="about" hidden>
   <div class="modal-card">
     <div class="xp-titlebar">
@@ -189,12 +215,71 @@
   </div>
 </div>
 
-<script src="../../../js/iso.js?v=6"></script>
-<script src="park.js?v=6"></script>
-<script src="../../../js/tour.js?v=6"></script>
-<script src="../../../js/render.js?v=6"></script>
-<script src="../../../js/ui.js?v=6"></script>
-<script src="../../../js/main.js?v=6"></script>
+<script src="../../../js/iso.js?v=7"></script>
+<script src="park.js?v=7"></script>
+<script src="technos.js?v=7"></script>
+<script src="../../../js/tour.js?v=7"></script>
+<script src="../../../js/render.js?v=7"></script>
+<script src="../../../js/ui.js?v=7"></script>
+<script src="../../../js/main.js?v=7"></script>
+<script>
+/* Mon parcours : une case « j'ai compris » par arrêt, persistée en
+   localStorage. Clic sur le nom → le train va à l'arrêt. */
+(function () {
+  'use strict';
+  var KEY = 'ragtycoon.ch1.ok';
+  var done = {};
+  try { done = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { done = {}; }
+
+  var list = document.getElementById('trail-list');
+  var count = document.getElementById('trail-count');
+
+  function save() { localStorage.setItem(KEY, JSON.stringify(done)); }
+  function paint() {
+    var n = 0;
+    Park.stops.forEach(function (s) { if (done[s.id]) n++; });
+    count.textContent = n + ' / ' + Park.stops.length;
+    var items = list.children;
+    for (var i = 0; i < items.length; i++) {
+      items[i].classList.toggle('done', !!done[items[i].dataset.id]);
+    }
+  }
+
+  Park.stops.forEach(function (s, i) {
+    var li = document.createElement('li');
+    li.dataset.id = s.id;
+    var cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = !!done[s.id];
+    cb.title = 'J\u2019ai compris cet arrêt';
+    cb.addEventListener('click', function (e) {
+      e.stopPropagation();        /* cocher ne déplace pas le train */
+      done[s.id] = cb.checked;
+      save(); paint();
+    });
+    var n = document.createElement('span');
+    n.className = 'n'; n.textContent = (i + 1) + '.';
+    var nm = document.createElement('span');
+    nm.className = 'nm'; nm.textContent = s.name;
+    li.appendChild(cb); li.appendChild(n); li.appendChild(nm);
+    li.addEventListener('click', function () {
+      Tour.jumpTo(s.id);
+    });
+    list.appendChild(li);
+  });
+
+  /* surligner l'arrêt courant dans la liste */
+  Tour.on(function (name, id) {
+    if (name !== 'stage') return;
+    var items = list.children;
+    for (var i = 0; i < items.length; i++) {
+      items[i].classList.toggle('act', items[i].dataset.id === id);
+    }
+  });
+
+  paint();
+})();
+</script>
 <script>
 /* Lecteur de narration style Windows Media Player XP.
    - Lecture automatique de l'arrêt courant quand le train s'arrête
