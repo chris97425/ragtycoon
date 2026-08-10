@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAGTycoon — L'usine RAG</title>
+<style>
+  :root{
+    --bg:#0b0e14; --panel:#131722; --line:#232a3a; --text:#e6e9f0;
+    --muted:#8b93a7; --cyan:#22d3ee; --green:#34d399; --amber:#fbbf24; --pink:#f472b6;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    min-height:100vh; display:flex; flex-direction:column; align-items:center;
+  }
+  header{text-align:center; padding:22px 16px 8px}
+  header h1{font-size:1.6rem; letter-spacing:.5px}
+  header h1 .accent{color:var(--cyan)}
+  header p{color:var(--muted); font-size:.85rem; margin-top:4px}
+
+  /* ===== Usine ===== */
+  .stage-wrap{width:100%; max-width:1100px; padding:14px 10px 0; overflow-x:auto}
+  .stage{
+    position:relative; background:var(--panel); border:1px solid var(--line);
+    border-radius:14px; min-width:700px; padding:26px 20px 46px;
+    box-shadow:0 8px 30px rgba(0,0,0,.4);
+  }
+  /* rail */
+  .rail{position:absolute; left:6%; right:6%; top:64px; height:3px;
+    background:repeating-linear-gradient(90deg,var(--line) 0 10px,transparent 10px 18px);
+    border-radius:2px}
+  .rail::after{content:""; position:absolute; inset:0; border-radius:2px;
+    background:linear-gradient(90deg,transparent,var(--cyan),transparent);
+    opacity:.35; animation:flow 3s linear infinite}
+  @keyframes flow{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+
+  /* stations */
+  .stations{position:relative; display:flex; justify-content:space-between; padding:0 2%}
+  .station{display:flex; flex-direction:column; align-items:center; gap:6px; cursor:pointer;
+    width:70px; user-select:none; z-index:2}
+  .station .disc{
+    width:52px; height:52px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    background:#1c2230; border:2px solid var(--line); font-size:1.35rem;
+    transition:all .3s; position:relative;
+  }
+  .station .label{font-size:.62rem; color:var(--muted); text-align:center; line-height:1.15; font-weight:600}
+  .station.active .disc{border-color:var(--cyan); background:#16233a; box-shadow:0 0 18px rgba(34,211,238,.35); transform:scale(1.08)}
+  .station.active .label{color:var(--cyan)}
+  .station.done .disc{border-color:var(--green); background:#12231d}
+  .station.done .label{color:var(--green)}
+
+  /* ===== Le chariot-document ===== */
+  #cart{
+    position:absolute; top:44px; left:0; width:74px; height:58px;
+    transform:translateX(-50%); transition:left 1.4s cubic-bezier(.45,.05,.35,1);
+    z-index:3; pointer-events:none;
+  }
+  .cart-body{
+    width:100%; height:100%; position:relative;
+    display:flex; align-items:center; justify-content:center;
+    background:#f4f1e8; color:#1c2230; border-radius:6px; font-size:1.5rem;
+    box-shadow:0 6px 16px rgba(0,0,0,.45); transition:all .5s;
+  }
+  /* forme doc : pliure */
+  .cart-body::before{content:""; position:absolute; top:0; right:0; width:16px; height:16px;
+    background:linear-gradient(225deg,transparent 48%,#c9c4b4 50%); border-radius:0 0 0 6px}
+  .stage[data-speed="2"] #cart{transition-duration:.7s}
+  .stage[data-speed="3"] #cart{transition-duration:.45s}
+
+  /* états visuels du cart par étape */
+  #cart .c-doc{display:none} #cart .c-chunks{display:none} #cart .c-vec{display:none}
+  #cart .c-db{display:none} #cart .c-q{display:none} #cart .c-out{display:none}
+  #cart .c-ctx{display:none} #cart .c-ans{display:none}
+
+  .stage[data-step="0"] .c-doc{display:flex}
+  .stage[data-step="1"] .c-chunks{display:flex}
+  .stage[data-step="2"] .c-vec{display:flex}
+  .stage[data-step="3"] .c-db{display:flex}
+  .stage[data-step="4"] .c-q{display:flex}
+  .stage[data-step="5"] .c-out{display:flex}
+  .stage[data-step="6"] .c-ctx{display:flex}
+  .stage[data-step="7"] .c-ans{display:flex}
+
+  /* chunks : 4 mini-docs */
+  .chunks{display:flex; gap:4px; align-items:center}
+  .chunk{width:14px; height:20px; background:#3b82f6; border-radius:3px; animation:bob 1s ease-in-out infinite alternate}
+  .chunk:nth-child(2){background:#8b5cf6; animation-delay:.15s}
+  .chunk:nth-child(3){background:#f59e0b; animation-delay:.3s}
+  .chunk:nth-child(4){background:#22d3ee; animation-delay:.45s}
+  @keyframes bob{from{transform:translateY(2px)}to{transform:translateY(-3px)}}
+
+  /* vecteurs : points lumineux + flèche */
+  .vec{display:flex; gap:5px; align-items:center}
+  .vec-dot{width:12px;height:12px;border-radius:50%;background:var(--cyan);
+    box-shadow:0 0 10px var(--cyan); animation:pulse 1.2s ease-in-out infinite}
+  .vec-dot:nth-child(2){animation-delay:.2s}.vec-dot:nth-child(3){animation-delay:.4s}
+  .vec-dot:nth-child(4){animation-delay:.6s}
+  @keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.5);opacity:.6}}
+
+  /* base vectorielle : tour */
+  .db{display:flex; flex-direction:column; gap:3px; align-items:center}
+  .db-row{display:flex; gap:3px}
+  .db-cell{width:10px;height:10px;background:var(--green);border-radius:2px;animation:blink 1.4s ease-in-out infinite}
+  .db-cell:nth-child(2){animation-delay:.2s}.db-cell:nth-child(3){animation-delay:.4s}
+  .db-cell:nth-child(4){animation-delay:.6s}
+  @keyframes blink{0%,100%{opacity:.5}50%{opacity:1}}
+
+  /* question : bulle */
+  .q{font-size:1.3rem; animation:pop .6s ease-out}
+  @keyframes pop{from{transform:scale(.3);opacity:0}to{transform:scale(1);opacity:1}}
+
+  /* sortie retrieval : 3 chunks extraits */
+  .out{display:flex; gap:4px; align-items:center}
+  .out-c{width:13px;height:18px;border-radius:3px;background:var(--amber);
+    box-shadow:0 0 8px var(--amber); animation:up 1s ease-in-out infinite alternate}
+  .out-c:nth-child(2){animation-delay:.2s}.out-c:nth-child(3){animation-delay:.4s}
+  @keyframes up{from{transform:translateY(3px)}to{transform:translateY(-4px)}}
+
+  /* contexte : puzzle */
+  .ctx{display:flex; gap:3px; flex-wrap:wrap; justify-content:center; width:56px}
+  .ctx-p{width:16px;height:16px;border-radius:3px}
+  .ctx-p:nth-child(1){background:var(--cyan)}.ctx-p:nth-child(2){background:var(--amber)}
+  .ctx-p:nth-child(3){background:#8b5cf6}.ctx-p:nth-child(4){background:var(--pink)}
+  .ctx-p:nth-child(5){background:var(--green)}
+  .ctx{animation:assemble .8s ease-out}
+  @keyframes assemble{from{transform:scale(.5) rotate(-8deg);opacity:0}to{transform:scale(1) rotate(0);opacity:1}}
+
+  /* réponse */
+  .ans{font-size:1.5rem; animation:pop .7s ease-out}
+
+  /* particules d'ambiance */
+  .p{position:absolute; width:4px; height:4px; border-radius:50%; background:var(--cyan); opacity:.25; animation:rise linear infinite}
+  @keyframes rise{from{transform:translateY(20px);opacity:0}20%{opacity:.3}to{transform:translateY(-30px);opacity:0}}
+
+  /* ===== Panneau info ===== */
+  .info{
+    max-width:1100px; width:100%; margin:16px auto 0; padding:0 12px;
+  }
+  .info-box{
+    background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 18px;
+    min-height:118px; transition:all .3s;
+  }
+  .info-box .step-num{color:var(--cyan); font-size:.72rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase}
+  .info-box h2{font-size:1.15rem; margin:4px 0 6px}
+  .info-box p{color:var(--muted); font-size:.88rem; line-height:1.5}
+  .info-box .ent{display:none; margin-top:8px; padding:8px 10px; border-left:3px solid var(--amber);
+    background:#1c1a12; border-radius:0 8px 8px 0; font-size:.8rem; color:#e8d9a8; line-height:1.45}
+  .info-box.show-ent .ent{display:block}
+  .progress{height:4px; background:var(--line); border-radius:2px; margin-top:12px; overflow:hidden}
+  .progress i{display:block; height:100%; width:0%; background:linear-gradient(90deg,var(--cyan),var(--green)); transition:width 1s}
+
+  /* ===== Contrôles ===== */
+  .controls{display:flex; gap:10px; justify-content:center; align-items:center; padding:16px 0 30px; flex-wrap:wrap}
+  .btn{
+    background:#1c2230; color:var(--text); border:1px solid var(--line); border-radius:10px;
+    padding:10px 20px; font-size:.9rem; font-weight:600; cursor:pointer; transition:all .2s;
+    display:flex; align-items:center; gap:8px;
+  }
+  .btn:hover{border-color:var(--cyan); transform:translateY(-1px)}
+  .btn:active{transform:scale(.97)}
+  .btn.primary{background:var(--cyan); color:#04121a; border-color:var(--cyan)}
+  .btn.primary:hover{box-shadow:0 0 18px rgba(34,211,238,.4)}
+  .speed{display:flex; gap:4px; margin-left:6px}
+  .speed button{background:transparent; border:1px solid var(--line); color:var(--muted);
+    border-radius:8px; padding:8px 12px; font-size:.78rem; font-weight:700; cursor:pointer}
+  .speed button.on{background:#16233a; color:var(--cyan); border-color:var(--cyan)}
+
+  footer{color:#4a5268; font-size:.72rem; padding-bottom:24px; text-align:center}
+
+  /* ===== Responsive ===== */
+  @media(max-width:760px){
+    .stage-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch}
+    .stage{min-width:680px}
+    header h1{font-size:1.3rem}
+    .info-box{min-height:0}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>RAGTycoon <span class="accent">🏭</span></h1>
+  <p>Suis le document-chariot dans l'usine RAG — il se transforme à chaque poste</p>
+</header>
+
+<div class="stage-wrap">
+  <div class="stage" id="stage" data-step="0" data-speed="1">
+    <div class="rail"></div>
+    <div class="stations" id="stations"></div>
+    <div id="cart">
+      <div class="cart-body">
+        <div class="c-doc">📄</div>
+        <div class="c-chunks"><div class="chunks"><span class="chunk"></span><span class="chunk"></span><span class="chunk"></span><span class="chunk"></span></div></div>
+        <div class="c-vec"><div class="vec"><span class="vec-dot"></span><span class="vec-dot"></span><span class="vec-dot"></span><span class="vec-dot"></span></div></div>
+        <div class="c-db"><div class="db"><div class="db-row"><span class="db-cell"></span><span class="db-cell"></span><span class="db-cell"></span></div><div class="db-row"><span class="db-cell"></span><span class="db-cell"></span><span class="db-cell"></span></div></div></div>
+        <div class="c-q"><span class="q">❓</span></div>
+        <div class="c-out"><div class="out"><span class="out-c"></span><span class="out-c"></span><span class="out-c"></span></div></div>
+        <div class="c-ctx"><div class="ctx"><span class="ctx-p"></span><span class="ctx-p"></span><span class="ctx-p"></span><span class="ctx-p"></span><span class="ctx-p"></span></div></div>
+        <div class="c-ans"><span class="ans">✨</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="info">
+  <div class="info-box" id="info">
+    <div class="step-num" id="stepNum">Étape 1 / 8</div>
+    <h2 id="infoTitle">Arrivée</h2>
+    <p id="infoDesc"></p>
+    <div class="ent" id="infoEnt"></div>
+    <div class="progress"><i id="progressBar"></i></div>
+  </div>
+</div>
+
+<div class="controls">
+  <button class="btn primary" id="playBtn">⏸ Pause</button>
+  <button class="btn" id="replayBtn">↺ Rejouer</button>
+  <div class="speed">
+    <button data-s="1" class="on">1×</button>
+    <button data-s="2">2×</button>
+    <button data-s="3">3×</button>
+  </div>
+</div>
+
+<footer>Simulation pédagogique — apprendre en fabriquant · méthode « How I use LLMs to learn » (L. Raducu)</footer>
+
+<script>
+const STEPS = [
+  {icon:"📥", label:"Arrivée", title:"Arrivée du document",
+   desc:"Un document brut entre dans l'usine : PDF, Word, page wiki, table SQL… Il est non structuré et illisible pour un LLM seul.",
+   ent:"En entreprise, les sources sont hétérogènes : SharePoint, bases métier, mails, ERP. L'ingestion doit normaliser tous ces formats."},
+  {icon:"✂️", label:"Découpage", title:"Découpage en chunks",
+   desc:"Le document est découpé en morceaux (chunks) de 256 à 1024 tokens, avec 10–20 % de chevauchement pour ne pas couper une idée en deux. Chaque chunk = une unité de connaissance.",
+   ent:"C'est le réglage le plus important du RAG : de mauvais chunks garantissent de mauvaises réponses, même avec les meilleurs modèles."},
+  {icon:"🧭", label:"Embeddings", title:"Embeddings — coordonnées sémantiques",
+   desc:"Chaque chunk est converti en un vecteur de nombres (ex. 1536 dimensions) : sa position GPS dans l'espace du sens. Deux chunks proches dans cet espace = deux idées proches.",
+   ent:"Le modèle d'embedding doit être adapté à la langue et au domaine (juridique, technique…). Un chunk avec ses métadonnées (source, date, titre) se retrouve plus facilement."},
+  {icon:"🗄️", label:"Indexation", title:"Indexation dans la base vectorielle",
+   desc:"Les vecteurs sont rangés dans une base vectorielle (pgvector, Qdrant, Pinecone…) avec un index HNSW : retrouver les plus proches prend moins de 100 ms, même sur des millions de chunks.",
+   ent:"Le choix de la base dépend de l'existant : déjà PostgreSQL ? pgvector suffit souvent. Besoin de filtres complexes et de scale-out ? Qdrant ou Pinecone."},
+  {icon:"❓", label:"Question", title:"Une question arrive",
+   desc:"Un utilisateur pose une question. Elle est convertie en vecteur avec le même modèle d'embedding — elle entre dans le même espace sémantique.",
+   ent:"En entreprise, la question peut être reformulée (query rewriting) pour améliorer la recherche, et filtrée par les droits de l'utilisateur."},
+  {icon:"🔍", label:"Retrieval", title:"Retrieval — la recherche",
+   desc:"Le moteur cherche les chunks les plus proches de la question : le top 3 à 5. C'est le stagiaire qui court chercher les bonnes fiches dans la bibliothèque.",
+   ent:"Version entreprise : recherche hybride (BM25 mots-clés + vecteurs) fusionnée par RRF, puis reranking par cross-encoder pour garder les 3 meilleurs. +20–40 % de précision."},
+  {icon:"🧩", label:"Contexte", title:"Assemblage du contexte",
+   desc:"Les chunks retenus + la question sont assemblés dans le prompt, avec leurs sources. Le LLM n'a que ça sous les yeux pour répondre.",
+   ent:"Chaque chunk garde sa source (document, page, date) : indispensable pour les citations et la traçabilité exigées en entreprise."},
+  {icon:"✨", label:"Génération", title:"Génération de la réponse",
+   desc:"Le LLM rédige la réponse uniquement à partir du contexte fourni, avec citations. Si le retrieval est bon, l'hallucination n'a plus de place.",
+   ent:"En production : garde-fous (refus si contexte insuffisant), détection PII, journalisation, et évaluation continue sur un jeu de test."}
+];
+
+const stage = document.getElementById("stage");
+const stationsEl = document.getElementById("stations");
+const info = document.getElementById("info");
+const infoTitle = document.getElementById("infoTitle");
+const infoDesc = document.getElementById("infoDesc");
+const infoEnt = document.getElementById("infoEnt");
+const stepNum = document.getElementById("stepNum");
+const progressBar = document.getElementById("progressBar");
+const cart = document.getElementById("cart");
+const playBtn = document.getElementById("playBtn");
+
+let step = 0, playing = true, timer = null;
+const HOLD = {1:3400, 2:1800, 3:1000}; // ms par vitesse
+
+// stations
+STEPS.forEach((s,i)=>{
+  const d = document.createElement("div");
+  d.className = "station";
+  d.innerHTML = `<div class="disc">${s.icon}</div><div class="label">${s.label}</div>`;
+  d.onclick = ()=> setStep(i, true);
+  stationsEl.appendChild(d);
+});
+
+function stationEls(){ return [...document.querySelectorAll(".station")]; }
+
+function moveCart(){
+  // position : centrée sur la station (6% → 94%)
+  const pct = 6 + (step / (STEPS.length-1)) * 88;
+  cart.style.left = pct + "%";
+}
+
+function renderInfo(){
+  const s = STEPS[step];
+  stepNum.textContent = `Étape ${step+1} / ${STEPS.length}`;
+  infoTitle.textContent = s.title;
+  infoDesc.textContent = s.desc;
+  infoEnt.textContent = s.ent;
+  info.classList.toggle("show-ent", !!s.ent);
+  progressBar.style.width = ((step+1)/STEPS.length*100) + "%";
+  stationEls().forEach((el,i)=>{
+    el.classList.toggle("active", i===step);
+    el.classList.toggle("done", i<step);
+  });
+  stage.dataset.step = step;
+}
+
+function scheduleNext(){
+  clearTimeout(timer);
+  if(!playing) return;
+  if(step >= STEPS.length-1){ playBtn.textContent = "▶ Lecture"; playing=false; return; }
+  timer = setTimeout(()=>{ setStep(step+1); }, HOLD[+stage.dataset.speed]);
+}
+
+function setStep(i, manual=false){
+  step = Math.max(0, Math.min(STEPS.length-1, i));
+  moveCart();
+  renderInfo();
+  // feedback visuel du poste
+  const els = stationEls();
+  els.forEach(e=>e.classList.remove("flash"));
+  if(manual){ els[step].classList.add("flash"); setTimeout(()=>els[step].classList.remove("flash"), 600); }
+  scheduleNext();
+}
+
+playBtn.onclick = ()=>{
+  playing = !playing;
+  if(playing){
+    playBtn.textContent = "⏸ Pause";
+    if(step >= STEPS.length-1) setStep(0);
+    else scheduleNext();
+  }else{
+    playBtn.textContent = "▶ Lecture";
+    clearTimeout(timer);
+  }
+};
+document.getElementById("replayBtn").onclick = ()=>{ setStep(0); playing=true; playBtn.textContent="⏸ Pause"; };
+
+document.querySelectorAll(".speed button").forEach(b=>{
+  b.onclick = ()=>{
+    document.querySelectorAll(".speed button").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");
+    stage.dataset.speed = b.dataset.s;
+    if(playing) scheduleNext();
+  };
+});
+
+// particules d'ambiance
+for(let i=0;i<14;i++){
+  const p = document.createElement("div");
+  p.className = "p";
+  p.style.left = (3 + Math.random()*94) + "%";
+  p.style.top = (30 + Math.random()*50) + "px";
+  p.style.animationDuration = (2.5 + Math.random()*4) + "s";
+  p.style.animationDelay = (Math.random()*3) + "s";
+  stage.appendChild(p);
+}
+
+setStep(0);
+</script>
+</body>
+</html>
