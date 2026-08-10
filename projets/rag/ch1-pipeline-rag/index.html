@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Chapitre 1 · Le pipeline RAG — RAGTycoon</title>
 <meta name="description" content="Une visite guidée isométrique de l'usine RAG. Un chariot porte un document d'une pile de fichiers bruts jusqu'à une réponse citée et évaluée, en s'arrêtant aux vingt-deux étapes du chemin." />
-<link rel="stylesheet" href="../../../css/xp.css?v=7" />
-<link rel="stylesheet" href="../../../css/styles.css?v=7" />
+<link rel="stylesheet" href="../../../css/xp.css?v=8" />
+<link rel="stylesheet" href="../../../css/styles.css?v=8" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%232f3945'/%3E%3Crect x='9' y='9' width='14' height='14' rx='2' fill='%233fb5a0'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -215,13 +215,13 @@
   </div>
 </div>
 
-<script src="../../../js/iso.js?v=7"></script>
-<script src="park.js?v=7"></script>
-<script src="technos.js?v=7"></script>
-<script src="../../../js/tour.js?v=7"></script>
-<script src="../../../js/render.js?v=7"></script>
-<script src="../../../js/ui.js?v=7"></script>
-<script src="../../../js/main.js?v=7"></script>
+<script src="../../../js/iso.js?v=8"></script>
+<script src="park.js?v=8"></script>
+<script src="technos.js?v=8"></script>
+<script src="../../../js/tour.js?v=8"></script>
+<script src="../../../js/render.js?v=8"></script>
+<script src="../../../js/ui.js?v=8"></script>
+<script src="../../../js/main.js?v=8"></script>
 <script>
 /* Mon parcours : une case « j'ai compris » par arrêt, persistée en
    localStorage. Clic sur le nom → le train va à l'arrêt. */
@@ -248,20 +248,26 @@
   Park.stops.forEach(function (s, i) {
     var li = document.createElement('li');
     li.dataset.id = s.id;
+    /* label + span : la coche est dessinée sur le span (les pseudo-éléments
+       ne fonctionnent PAS sur les <input>, c'est pourquoi la case semblait
+       morte). Le label rend toute la case cliquable sans déplacer le train. */
+    var lab = document.createElement('label');
+    lab.className = 'xp-check';
+    lab.title = 'J\u2019ai compris cet arrêt';
     var cb = document.createElement('input');
     cb.type = 'checkbox';
     cb.checked = !!done[s.id];
-    cb.title = 'J\u2019ai compris cet arrêt';
-    cb.addEventListener('click', function (e) {
-      e.stopPropagation();        /* cocher ne déplace pas le train */
+    cb.addEventListener('change', function () {
       done[s.id] = cb.checked;
       save(); paint();
     });
+    var box = document.createElement('span');
+    lab.appendChild(cb); lab.appendChild(box);
     var n = document.createElement('span');
     n.className = 'n'; n.textContent = (i + 1) + '.';
     var nm = document.createElement('span');
     nm.className = 'nm'; nm.textContent = s.name;
-    li.appendChild(cb); li.appendChild(n); li.appendChild(nm);
+    li.appendChild(lab); li.appendChild(n); li.appendChild(nm);
     li.addEventListener('click', function () {
       Tour.jumpTo(s.id);
     });
