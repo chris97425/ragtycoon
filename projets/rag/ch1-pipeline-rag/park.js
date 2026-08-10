@@ -294,12 +294,21 @@
   var STOP_BY_ID = {};
   STOPS.forEach(function (s) { STOP_BY_ID[s.id] = s; });
 
-  /* Reading stops are scaled to how much there is to read. */
+  /* Reading stops are scaled to how much there is to read. When a narration
+     exists for the stop, the first visit also covers the audio duration. */
+  var AUDIO_DUR = {
+    warehouse: 42.4, parser: 35.4, cleaner: 37.1, chunker: 37.4,
+    enricher: 38.4, dedup: 34.0, embed: 32.1, vector: 36.8,
+    filter: 30.4, query: 29.9, rewrite: 29.2, hybrid: 38.5,
+    rrf: 30.3, rerank: 33.9, rights: 31.8, loopct: 39.0,
+    context: 38.5, llm: 35.2, cite: 34.5, guard: 34.0,
+    dock: 32.0, eval: 46.7
+  };
   function readSeconds(id) {
     var s = STOP_BY_ID[id];
-    if (!s) return 8;
-    var words = (s.short + ' ' + s.body + ' ' + s.tip).split(/\s+/).length;
-    return Math.min(22, Math.max(10, words / 4.4 + 3));
+    var base = s ? Math.min(22, Math.max(10, (s.short + ' ' + s.body + ' ' + s.tip).split(/\s+/).length / 4.4 + 3)) : 8;
+    var audio = AUDIO_DUR[id] || 0;
+    return Math.max(base, Math.ceil(audio) + 2);
   }
   Object.keys(STATIONS).forEach(function (r) {
     STATIONS[r].forEach(function (st) { st.read = readSeconds(st.id); });

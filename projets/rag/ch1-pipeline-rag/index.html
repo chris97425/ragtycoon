@@ -114,6 +114,7 @@
     <div class="group toggles">
       <label class="toggle"><input id="follow" type="checkbox" checked /><span>Suivre</span></label>
       <label class="toggle"><input id="labels" type="checkbox" checked /><span>Panneaux</span></label>
+      <button id="btn-sound" class="icon" title="Son de la narration (lecture automatique à chaque arrêt)">🔊</button>
     </div>
   </div>
 </footer>
@@ -170,5 +171,72 @@
 <script src="../../../js/render.js?v=4"></script>
 <script src="../../../js/ui.js?v=4"></script>
 <script src="../../../js/main.js?v=4"></script>
+<script>
+/* Narration audio : chaque arrêt joue son commentaire automatiquement.
+   Les navigateurs bloquent l'autoplay sans interaction : on tente de jouer
+   dès qu'un arrêt est expliqué, et le premier geste de l'utilisateur (clic,
+   touche, toucher) débloque l'audio pour la suite. */
+(function () {
+  'use strict';
+  var audio = document.createElement('audio');
+  audio.preload = 'auto';
+  document.body.appendChild(audio);
+
+  var soundOn = true;
+  var waitingForGesture = false;
+  var btn = document.getElementById('btn-sound');
+  var currentSrc = null;
+
+  function paint() {
+    btn.textContent = soundOn ? '🔊' : '🔇';
+    btn.title = soundOn
+      ? 'Son de la narration : actif (clique pour couper)'
+      : 'Son de la narration : coupé (clique pour activer)';
+  }
+
+  function playFor(stopId) {
+    if (!soundOn || !stopId) return;
+    var src = 'audio/stop-' + stopId + '.mp3';
+    if (src === currentSrc && !audio.paused) return;
+    currentSrc = src;
+    audio.src = src;
+    var p = audio.play();
+    if (p && p.catch) {
+      p.catch(function () {
+        /* autoplay bloqué : on attend le premier geste */
+        waitingForGesture = true;
+      });
+    }
+  }
+
+  /* quand le tour atteint un arrêt, lancer sa narration */
+  Tour.on(function (name, id) {
+    if (name === 'stage') playFor(id);
+  });
+
+  /* premier geste utilisateur : débloque l'audio (autoplay policy) */
+  function unlock() {
+    if (!waitingForGesture) return;
+    waitingForGesture = false;
+    var s = Tour.state;
+    playFor(s.stage);
+  }
+  ['pointerdown', 'keydown', 'touchend'].forEach(function (ev) {
+    document.addEventListener(ev, unlock, { passive: true });
+  });
+
+  btn.addEventListener('click', function () {
+    soundOn = !soundOn;
+    paint();
+    if (!soundOn) { audio.pause(); currentSrc = null; }
+    else {
+      waitingForGesture = false;
+      playFor(Tour.state.stage);
+    }
+  });
+
+  paint();
+})();
+</script>
 </body>
 </html>
