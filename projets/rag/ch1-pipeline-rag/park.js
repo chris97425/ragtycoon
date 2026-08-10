@@ -1169,6 +1169,545 @@
     ctx.beginPath(); ctx.arc(p.x, yo - 22.5, 4.4, Math.PI, 0); ctx.fill();
   }
 
+  /* ---- document detail animations ----------------------------------------
+     Each stop gets a small looping animation shown in the "inside the
+     document" panel: exactly what happens to the document at that stop.
+     Functions draw in a 2D viewport (w x h px) with t looping over 6 s. */
+
+  function docBox(ctx, x, y, label, c) {
+    ctx.fillStyle = c; ctx.strokeStyle = '#8a7a5a'; ctx.lineWidth = 1;
+    ctx.fillRect(x, y, 44, 30); ctx.strokeRect(x, y, 44, 30);
+    ctx.fillStyle = '#3a4450'; ctx.font = 'bold 8px sans-serif';
+    ctx.fillText(label, x + 4, y + 11);
+    ctx.strokeStyle = '#b0a48e';
+    for (var i = 0; i < 2; i++) {
+      ctx.beginPath(); ctx.moveTo(x + 4, y + 17 + i * 5); ctx.lineTo(x + 40, y + 17 + i * 5); ctx.stroke();
+    }
+  }
+
+  var DETAILS = {
+
+    /* 1 — Entrepôt : les fichiers arrivent, formats hétérogènes. */
+    warehouse: function (ctx, w, h, t) {
+      ctx.fillStyle = '#e8e2d2'; ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#b9a888'; ctx.fillRect(8, h - 26, w - 16, 7);
+      var labels = ['PDF', 'WORD', 'SQL', 'DOC', 'XLS'];
+      for (var i = 0; i < 3; i++) docBox(ctx, 14 + i * 14, h - 62 + i * 8, labels[i], '#e3dcc8');
+      var k = (t / 1.5) % 1;
+      docBox(ctx, w / 2 - 22, 6 + (h - 76) * k, labels[Math.floor(t) % labels.length], '#ffffff');
+      ctx.fillStyle = '#6a5c3a'; ctx.font = 'bold 9px sans-serif';
+      ctx.fillText('fichiers bruts non structurés', 8, 14);
+    },
+
+    /* 2 — Parseur : scan → OCR → texte extrait. */
+    parser: function (ctx, w, h, t) {
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+      var k = (t / 2.4) % 1;
+      if (k < 0.5) {
+        var p = k * 2;
+        ctx.fillStyle = '#d8d8d8'; ctx.fillRect(14, 12, 96, 112);
+        ctx.fillStyle = 'rgba(90,80,60,0.25)';
+        for (var i = 0; i < 24; i++) {
+          ctx.fillRect(14 + ((i * 37) % 84), 12 + ((i * 53) % 98), 3, 2);
+        }
+        ctx.fillStyle = 'rgba(79,208,192,0.7)';
+        ctx.fillRect(14, 12 + p * 110, 96, 3);
+        ctx.fillStyle = '#3a4450'; ctx.font = 'bold 9px sans-serif';
+        ctx.fillText('OCR en cours…', 24, 40);
+      } else {
+        var p2 = (k - 0.5) * 2;
+        ctx.fillStyle = '#f4f1e8'; ctx.fillRect(120, 12, w - 132, 112);
+        ctx.strokeStyle = '#8a7a5a'; ctx.strokeRect(120, 12, w - 132, 112);
+        ctx.fillStyle = '#3a4450'; ctx.font = '8px sans-serif';
+        var lines = Math.floor(p2 * 9);
+        for (var i2 = 0; i2 < lines; i2++) {
+          ctx.fillText('texte extrait — ligne ' + (i2 + 1), 126, 26 + i2 * 11);
+        }
+        ctx.fillStyle = '#34d399'; ctx.font = 'bold 9px sans-serif';
+        ctx.fillText('✓ texte + structure (titres, pages)', 126, 28 + lines * 11);
+      }
+      ctx.fillStyle = '#8a7a5a'; ctx.font = '7px sans-serif';
+      ctx.fillText('PDF / scan / tableur → texte propre', 8, h - 6);
+    },
+
+    /* 3 — Nettoyeur : les parasites sont barrés. */
+    cleaner: function (ctx, w, h, t) {
+      ctx.fillStyle = '#f4f1e8'; ctx.fillRect(0, 0, w, h);
+      var k = (t / 2.2) % 1;
+      ctx.font = '8px sans-serif';
+      for (var i = 0; i < 8; i++) {
+        var y = 16 + i * 13;
+        if (i === 2 || i === 5) {
+          ctx.fillStyle = '#c0b8a8';
+          ctx.fillText('Page 12 — Rapport annuel', 14, y);
+          if (k > 0.55) {
+            ctx.strokeStyle = '#c8453a'; ctx.lineWidth = 1.6;
+            ctx.beginPath(); ctx.moveTo(14, y - 4); ctx.lineTo(118, y + 3); ctx.stroke();
+          }
+        } else {
+          ctx.fillStyle = '#3a4450';
+          ctx.fillText('contenu utile du document…', 14, y);
+        }
+      }
+      if (k > 0.55) {
+        ctx.fillStyle = '#34d399'; ctx.font = 'bold 10px sans-serif';
+        ctx.fillText('✓ en-têtes / pieds de page / bruit supprimés', 14, h - 10);
+      }
+    },
+
+    /* 4 — Découpeuse : le texte se coupe en chunks avec overlap visible. */
+    chunker: function (ctx, w, h, t) {
+      ctx.fillStyle = '#f4f1e8'; ctx.fillRect(0, 0, w, h);
+      var k = (t / 2.4) % 1;
+      if (k < 0.35) {
+        ctx.fillStyle = '#3a4450'; ctx.font = '8px sans-serif';
+        for (var i = 0; i < 8; i++) ctx.fillText('paragraphe du document…', 14, 18 + i * 13);
+        var cy = 18 + Math.floor((k / 0.35) * 8) * 13;
+        ctx.fillStyle = '#c8453a'; ctx.fillRect(10, cy - 1, 130, 2.5);
+      } else {
+        var cols = ['#3f7fd4', '#9a5fd0', '#c9793f', '#3fb5a0'];
+        var cw = w / 4;
+        for (var i2 = 0; i2 < 4; i2++) {
+          ctx.fillStyle = cols[i2];
+          ctx.fillRect(i2 * cw - 4, 16, cw + 8, 82);
+          ctx.fillStyle = '#fff'; ctx.font = 'bold 9px sans-serif';
+          ctx.fillText('chunk ' + (i2 + 1), i2 * cw + 6, 34);
+          ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.font = '7px sans-serif';
+          ctx.fillText('256–1024 tokens', i2 * cw + 6, 48);
+        }
+        ctx.strokeStyle = '#2f2113'; ctx.setLineDash([3, 3]);
+        for (var i3 = 1; i3 < 4; i3++) {
+          ctx.beginPath(); ctx.moveTo(i3 * cw - 4, 16); ctx.lineTo(i3 * cw - 4, 98); ctx.stroke();
+        }
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#2f2113'; ctx.font = 'bold 9px sans-serif';
+        ctx.fillText('chevauchement 10–20 % entre chunks', 6, h - 8);
+      }
+    },
+
+    /* 5 — Enrichisseur : les métadonnées s'attachent. */
+    enricher: function (ctx, w, h, t) {
+      ctx.fillStyle = '#f4f1e8'; ctx.fillRect(0, 0, w, h);
+      var cols = ['#3f7fd4', '#9a5fd0', '#c9793f'];
+      for (var i = 0; i < 3; i++) {
+        var x = 16 + i * 88, y = 30;
+        ctx.fillStyle = cols[i]; ctx.fillRect(x, y, 66, 40);
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 9px sans-serif';
+        ctx.fillText('chunk ' + (i + 1), x + 6, y + 15);
+        var fall = (t * 1.1 + i * 0.33) % 1;
+        ctx.fillStyle = '#f2c14e';
+        ctx.fillRect(x - 24, y + fall * 30, 24, 13);
+        ctx.fillStyle = '#5c4a10'; ctx.font = 'bold 7px sans-serif';
+        ctx.fillText(['SRC', 'DAT', 'SEC'][i], x - 20, y + fall * 30 + 9);
+      }
+      ctx.fillStyle = '#2f2113'; ctx.font = 'bold 9px sans-serif';
+      ctx.fillText('source · date · section · type · droits', 8, h - 10);
+    },
+
+    /* 6 — Dédoublonneur : empreinte → doublon supprimé, ID stable. */
+    dedup: function (ctx, w, h, t) {
+      ctx.fillStyle = '#f4f1e8'; ctx.fillRect(0, 0, w, h);
+      var k = (t / 2.4) % 1;
+      if (k < 0.45) {
+        docBox(ctx, 16, 22, 'v1', '#d5cdb6');
+        docBox(ctx, 96, 22, 'copie', '#d5cdb6');
+        ctx.fillStyle = '#2f2113'; ctx.font = 'bold 9px sans-serif';
+        ctx.fillText('même empreinte ?', 36, 76);
+        ctx.strokeStyle = '#4fd0c0'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(74, 98, 12, 0, 6.2832); ctx.stroke();
+        ctx.beginPath(); ctx.arc(74, 98, 7, 0, 6.2832); ctx.stroke();
+        ctx.beginPath(); ctx.arc(74, 98, 3, 0, 6.2832); ctx.stroke();
+      } else {
+        docBox(ctx, 48, 22, 'unique', '#e3dcc8');
+        ctx.fillStyle = '#34d399'; ctx.font = 'bold 10px sans-serif';
+        ctx.fillText('✓ doublon supprimé', 22, 74);
+        ctx.fillStyle = '#2f2113'; ctx.font = 'bold 8px sans-serif';
+        ctx.fillText('ID stable : chunk_0001', 14, 98);
+        ctx.fillStyle = '#8a7a5a'; ctx.font = '7px sans-serif';
+        ctx.fillText('traçable à chaque mise à jour', 14, 112);
+      }
+    },
+
+    /* 7 — Embedding : le chunk devient un point dans l'espace du sens. */
+    embed: function (ctx, w, h, t) {
+      ctx.fillStyle = '#0e1a24'; ctx.fillRect(0, 0, w, h);
+      var k = (t / 2.4) % 1;
+      if (k < 0.45) {
+        ctx.fillStyle = '#f4f1e8'; ctx.fillRect(12, 16, 96, 56);
+        ctx.strokeStyle = '#8a7a5a'; ctx.strokeRect(12, 16, 96, 56);
+        ctx.fillStyle = '#3a4450'; ctx.font = '8px sans-serif';
+        ctx.fillText('chunk texte…', 18, 34);
+        ctx.fillText('…à convertir', 18, 50);
+        var p = k / 0.45;
+        ctx.fillStyle = '#22d3ee';
+        for (var i = 0; i < 6; i++) {
+          ctx.beginPath();
+          ctx.arc(30 + ((i * 31) % 60), 80 + p * 40 + ((i * 7) % 18), 3.5, 0, 6.2832);
+          ctx.fill();
+        }
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 9px sans-serif';
+        ctx.fillText('→ espace vectoriel', 120, 40);
+      } else {
+        ctx.fillStyle = 'rgba(34,211,238,0.6)';
+        for (var i2 = 0; i2 < 44; i2++) {
+          ctx.globalAlpha = 0.25 + 0.75 * Math.abs(Math.sin(t * 1.5 + i2 * 1.7));
+          ctx.beginPath();
+          ctx.arc(18 + ((i2 * 37) % 150), 16 + ((i2 * 53) % 100), 2.2, 0, 6.2832);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#f2c14e';
+        ctx.beginPath(); ctx.arc(86, 58, 6, 0, 6.2832); ctx.fill();
+        ctx.fillStyle = '#ffe9a8'; ctx.font = 'bold 8px sans-serif';
+        ctx.fillText('le chunk = un point proche des idées voisines', 8, h - 14);
+        ctx.fillStyle = '#8fa2b5'; ctx.font = '7px sans-serif';
+        ctx.fillText('[0.12, 0.87, …] — typ. 1536 dimensions', 8, h - 3);
+      }
+    },
+
+    /* 8 — Base vectorielle : insertion dans l'index, recherche < 100 ms. */
+    vector: function (ctx, w, h, t) {
+      ctx.fillStyle = '#0e1a24'; ctx.fillRect(0, 0, w, h);
+      for (var i = 0; i < 5; i++) {
+        for (var j = 0; j < 3; j++) {
+          ctx.fillStyle = (i + j) % 2 ? '#1f5c4a' : '#12312a';
+          ctx.fillRect(18 + i * 34, 14 + j * 28, 28, 22);
+        }
+      }
+      var k = (t % 1.2) / 1.2;
+      ctx.fillStyle = '#34d399';
+      ctx.beginPath(); ctx.arc(18 + k * 170, 14 + ((t * 7) % 60), 4.5, 0, 6.2832); ctx.fill();
+      ctx.strokeStyle = 'rgba(52,211,153,0.5)'; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(52, 40); ctx.lineTo(86, 14);
+      ctx.lineTo(120, 40); ctx.lineTo(154, 14); ctx.lineTo(188, 40); ctx.stroke();
+      ctx.fillStyle = '#f2c14e'; ctx.font = 'bold 10px sans-serif';
+      ctx.fillText('index HNSW — recherche < 100 ms', 14, h - 8);
+      ctx.fillStyle = '#8fa2b5'; ctx.font = '7px sans-serif';
+      ctx.fillText('millions de chunks', 14, h - 18);
+    },
+
+    /* 9 — Filtres : seuls les chunks autorisés passent. */
+    filter: function (ctx, w, h, t) {
+      ctx.fillStyle = '#f4f1e8'; ctx.fillRect(0, 0, w, h);
+      for (var i = 0; i < 4; i++) {
+        var x = 14 + i * 68;
+        var allowed = (i % 2 === 0);
+        ctx.fillStyle = allowed ? '#e8f4e8' : '#f4e0d8';
+        ctx.fillRect(x, 18, 58, 84);
+        ctx.strokeStyle = allowed ? '#2f7a34' : '#a2402f'; ctx.lineWidth = 1;
+        ctx.strokeRect(x, 18, 58, 84);
+        ctx.fillStyle = '#3a4450'; ctx.font = 'bold 8px sans-serif';
+        ctx.fillText('chunk ' + (i + 1), x + 6, 34);
+        ctx.fillStyle = allowed ? '#34d399' : '#c8453a';
+        ctx.beginPath(); ctx.arc(x + 29, 70, 8, 0, 6.2832); ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(x + 26, 62, 6, 6);
+        if (!allowed) {
+          ctx.strokeStyle = '#8a2f26'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(x + 12, 38); ctx.lineTo(x + 46, 92); ctx.stroke();
+        }
+      }
+      ctx.fillStyle = '#2f2113'; ctx.font = 'bold 9px sans-serif';
+      ctx.fillText('droits : service A ✓ · service B ✗', 8, h - 8);
+    },
+
+    /* 10 — Porte des questions : la question entre dans l'espace sémantique. */
+    query: function (ctx, w, h, t) {
+      ctx.fillStyle = '#0e1a24'; ctx.fillRect(0, 0, w, h);
+      var k = (t / 2.4) % 1;
+      ctx.fillStyle = '#f4f1e8'; ctx.fillRect(8, 12, 200, 40);
+      ctx.strokeStyle = '#8a7a5a'; ctx.strokeRect(8, 12, 200, 40);
+      ctx.fillStyle = '#2f2113'; ctx.font = 'bold 9px sans-serif';
+      ctx.fillText('« Comment connecter la base ? »', 14, 36);
+      if (k > 0.45) {
+        ctx.fillStyle = '#22d3ee';
+        for (var i = 0; i < 10; i++) {
+          ctx.globalAlpha = 0.4 + 0.6 * Math.abs(Math.sin(t * 2 + i));
+          ctx.beginPath();
+          ctx.arc(60 + ((i * 29) % 130), 66 + ((i * 17) % 56), 3.5, 0, 6.2832);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 9px sans-serif';
+        ctx.fillText('→ convertie en vecteur, même espace que les chunks', 8, h - 8);
+      }
+    },
+
+    /* 11 — Reformulateur : la question devient nette + variantes. */
+    rewrite: function (ctx, w, h, t) {
+      ctx.fillStyle = '#f4f1e8'; ctx.fillRect(0, 0, w, h);
+      var k = (t / 2.4) % 1;
+      ctx.fillStyle = '#c0b8a8'; ctx.font = 'bold 9px sans-serif';
+      ctx.fillText('« le truc pour connecter la base »', 8, 22);
+      if (k > 0.3) {
+        ctx.fillStyle = '#3f7fd4'; ctx.font = '8px sans-serif';
+        ctx.fillText('✓ « procédure de connexion à la base de données »', 8, 52);
+      }
+      if (k > 0.55) {
+        ctx.fillStyle = '#9a5fd0';
+        ctx.fillText('✎ variante : « configurer l\u2019accès SQL »', 8, 72);
+      }
+      if (k > 0.8) {
+        ctx.fillStyle = '#c9793f';
+        ctx.fillText('✎ variante : « dépanner la connexion »', 8, 92);
+        ctx.fillStyle = '#34d399'; ctx.font = 'bold 9px sans-serif';
+        ctx.fillText('✓ 3 recherches lancées au lieu d\u20191', 8, 116);
+      }
+    },
+
+    /* 12 — Chercheur hybride : mots-clés ET sens en parallèle. */
+    hybrid: function (ctx, w, h, t) {
+      ctx.fillStyle = '#f4f1e8'; ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#f7e8b8'; ctx.fillRect(8, 12, 140, 108);
+      ctx.fillStyle = '#2f2113'; ctx.font = 'bold 9px sans-serif';
+      ctx.fillText('BM25 — mots exacts', 14, 28);
+      ctx.font = '7.5px sans-serif';
+      var kw = ['connexion', 'base', 'procédure', 'SQL'];
+      for (var i = 0; i < 4; i++) {
+        ctx.fillStyle = '#2f2113';
+        ctx.fillText('«' + kw[i] + '» ×' + (5 - i), 14, 44 + i * 15);
+        if ((t * 1.2 + i * 0.3) % 1.4 < 0.7) {
+          ctx.fillStyle = '#34d399'; ctx.fillText('✓', 116, 44 + i * 15);
+        }
+      }
+      ctx.fillStyle = '#dceef8'; ctx.fillRect(158, 12, 140, 108);
+      ctx.fillStyle = '#2f2113'; ctx.font = 'bold 9px sans-serif';
+      ctx.fillText('Vecteur — sens', 164, 28);
+      ctx.fillStyle = '#22d3ee';
+      for (var j = 0; j < 6; j++) {
+        ctx.beginPath(); ctx.arc(172 + ((j * 37) % 100), 42 + ((j * 29) % 60), 3.5, 0, 6.2832); ctx.fill();
+      }
+      if ((t * 1.2 + 0.7) % 1.4 > 0.7) {
+        ctx.fillStyle = '#2f2113'; ctx.font = '7.5px sans-serif';
+        ctx.fillText('«accès aux données» trouvé', 164, 116);
+        ctx.fillStyle = '#34d399'; ctx.fillText('✓', 262, 116);
+      }
+    },
+
+    /* 13 — RRF : deux classements fusionnés par rangs. */
+    rrf: function (ctx, w, h, t) {
+      ctx.fillStyle = '#f4f1e8'; ctx.fillRect(0, 0, w, h);
+      var k = (t / 2.4) % 1;
+      ctx.fillStyle = '#2f2113'; ctx.font = 'bold 8px sans-serif';
+      ctx.fillText('BM25', 20, 18); ctx.fillText('Dense', 150, 18);
+      ctx.font = '7.5px sans-serif';
+      var a = ['A', 'B', 'C', 'D'], b = ['D', 'A', 'E', 'B'];
+      for (var i = 0; i < 4; i++) {
+        ctx.fillText((i + 1) + '. chunk ' + a[i], 14, 34 + i * 14);
+        ctx.fillText((i + 1) + '. chunk ' + b[i], 144, 34 + i * 14);
+      }
+      if (k > 0.5) {
+        ctx.fillStyle = '#f2c14e'; ctx.font = 'bold 10px sans-serif';
+        ctx.fillText('RRF →', 94, 62);
+        ctx.fillStyle = '#2f2113'; ctx.font = 'bold 8px sans-serif';
+        ctx.fillText('1. chunk D (rangs 4+1)', 14, 92);
+        ctx.fillText('2. chunk A (rangs 1+2)', 14, 106);
+        ctx.fillText('3. chunk B (rangs 2+4)', 14, 120);
+        ctx.fillStyle = '#34d399'; ctx.font = 'bold 9px sans-serif';
+        ctx.fillText('✓ fusion par rangs', 14, 134);
+      }
+    },
+
+    /* 14 — Reranker : le cross-encoder re-classe, top-3 gardé. */
+    rerank: function (ctx, w, h, t) {
+      ctx.fillStyle = '#f4f1e8'; ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#2f2113'; ctx.font = 'bold 8px sans-serif';
+      ctx.fillText('cross-encoder : relit question + candidat ensemble', 8, 16);
+      var order = [['chunk C', 0.96, '#f2c14e'], ['chunk A', 0.91, '#c9d3dd'], ['chunk B', 0.84, '#a8763f']];
+      for (var i = 0; i < 3; i++) {
+        var y = 30 + i * 28;
+        ctx.fillStyle = order[i][2];
+        ctx.fillRect(58 - i * 12, y, 128 - i * 24, 22);
+        ctx.strokeStyle = '#8a7a5a'; ctx.lineWidth = 1;
+        ctx.strokeRect(58 - i * 12, y, 128 - i * 24, 22);
+        ctx.fillStyle = '#2f2113'; ctx.font = 'bold 8px sans-serif';
+        ctx.fillText(order[i][0] + '  score ' + order[i][1], 64, y + 14);
+      }
+      ctx.fillStyle = '#2f2113'; ctx.font = 'bold 9px sans-serif';
+      ctx.fillText('top-k = 3 conservés', 8, h - 8);
+    },
+
+    /* 15 — Contrôle des droits : badges et vérification finale. */
+    rights: function (ctx, w, h, t) {
+      ctx.fillStyle = '#f4f1e8'; ctx.fillRect(0, 0, w, h);
+      var k = (t / 2.4) % 1;
+      for (var i = 0; i < 3; i++) {
+        var x = 14 + i * 86;
+        var ok = i < 2;
+        ctx.fillStyle = ok ? '#e8f4e8' : '#f4e0d8';
+        ctx.fillRect(x, 18, 76, 76);
+        ctx.strokeStyle = ok ? '#2f7a34' : '#a2402f'; ctx.lineWidth = 1;
+        ctx.strokeRect(x, 18, 76, 76);
+        ctx.fillStyle = '#3a4450'; ctx.font = 'bold 8px sans-serif';
+        ctx.fillText('chunk ' + (i + 1), x + 6, 34);
+        ctx.fillStyle = '#2f2113'; ctx.font = '7px sans-serif';
+        ctx.fillText('équipe A', x + 6, 48);
+        ctx.fillStyle = ok ? '#34d399' : '#c8453a';
+        ctx.fillRect(x + 22, 58, 32, 18);
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 9px sans-serif';
+        ctx.fillText(ok ? 'OK' : 'NON', x + 26, 71);
+      }
+      if (k > 0.55) {
+        ctx.fillStyle = '#2f2113'; ctx.font = 'bold 9px sans-serif';
+        ctx.fillText('chunk 3 exclu — non autorisé pour cet utilisateur', 8, h - 8);
+      }
+    },
+
+    /* 16 — Compteur de boucle : la passe en cours. */
+    loopct: function (ctx, w, h, t) {
+      ctx.fillStyle = '#2a1e12'; ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = '#f2c14e'; ctx.lineWidth = 2; ctx.strokeRect(0, 0, w, h);
+      ctx.fillStyle = '#f2c14e'; ctx.font = 'bold 24px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('PASSE ' + (Math.floor(t / 2) % 3 + 1), w / 2, h / 2 - 8);
+      ctx.font = '10px sans-serif';
+      ctx.fillText('itération de recherche en cours…', w / 2, h / 2 + 14);
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#22d3ee';
+      for (var i = 0; i < 3; i++) {
+        var a = t * 2 + i * 2.1;
+        ctx.beginPath();
+        ctx.arc(w / 2 + Math.cos(a) * 46, h / 2 + 30 + Math.sin(a) * 12, 4, 0, 6.2832);
+        ctx.fill();
+      }
+    },
+
+    /* 17 — Assembleur de contexte : les chunks entrent dans le prompt. */
+    context: function (ctx, w, h, t) {
+      ctx.fillStyle = '#f4f1e8'; ctx.fillRect(0, 0, w, h);
+      var cols = ['#3f7fd4', '#9a5fd0', '#c9793f'];
+      var k = (t / 2.4) % 1;
+      for (var i = 0; i < 3; i++) {
+        var x = 10 + Math.min(k * 130, 145) + i * 6;
+        ctx.fillStyle = cols[i];
+        ctx.fillRect(x, 22 + i * 18, 48, 22);
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 7px sans-serif';
+        ctx.fillText('chunk ' + (i + 1), x + 4, 36 + i * 18);
+      }
+      ctx.fillStyle = '#16324a'; ctx.fillRect(160, 14, 132, 92);
+      ctx.strokeStyle = '#22d3ee'; ctx.lineWidth = 1.5; ctx.strokeRect(160, 14, 132, 92);
+      ctx.fillStyle = '#ffe9a8'; ctx.font = 'bold 9px sans-serif';
+      ctx.fillText('PROMPT', 168, 30);
+      ctx.fillStyle = '#fff'; ctx.font = '7px sans-serif';
+      ctx.fillText('question + chunks +', 164, 46);
+      ctx.fillText('consigne : « réponds avec', 164, 58);
+      ctx.fillText('le contexte seul »', 164, 70);
+      if (k > 0.6) {
+        ctx.fillStyle = '#34d399'; ctx.font = 'bold 8px sans-serif';
+        ctx.fillText('✓ assemblé + sources', 164, 96);
+      }
+    },
+
+    /* 18 — Réacteur LLM : le noyau génère token par token. */
+    llm: function (ctx, w, h, t) {
+      ctx.fillStyle = '#0e1a24'; ctx.fillRect(0, 0, w, h);
+      var pulse = 1 + 0.08 * Math.sin(t * 4);
+      ctx.fillStyle = '#4d7fb5';
+      ctx.beginPath(); ctx.arc(w / 2, h / 2 - 6, 28 * pulse, 0, 6.2832); ctx.fill();
+      ctx.fillStyle = '#7fd4e8';
+      ctx.beginPath(); ctx.arc(w / 2, h / 2 - 6, 17 * pulse, 0, 6.2832); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(w / 2, h / 2 - 6, 8 * pulse, 0, 6.2832); ctx.fill();
+      var words = ['La', 'réponse', 'est', 'basée', 'sur', 'les', 'chunks', 'fournis…'];
+      var n = Math.floor(t / 0.7) % (words.length + 1);
+      ctx.fillStyle = '#ffe9a8'; ctx.font = 'bold 9px sans-serif';
+      var line = '';
+      for (var i = 0; i < n; i++) line += words[i] + ' ';
+      ctx.fillText(line || '…', 10, h - 12);
+      ctx.fillStyle = '#22d3ee'; ctx.font = '8px sans-serif';
+      ctx.fillText('génération token par token', 10, 16);
+    },
+
+    /* 19 — Atelier citations : [1] [2] [3] sur chaque phrase. */
+    cite: function (ctx, w, h, t) {
+      ctx.fillStyle = '#f4f1e8'; ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#2f2113'; ctx.font = 'bold 9px sans-serif';
+      ctx.fillText('La base se connecte via SQL', 8, 26);
+      ctx.fillStyle = '#3f7fd4'; ctx.font = 'bold 8px sans-serif';
+      ctx.fillText('[1]', 162, 26);
+      ctx.fillText('et nécessite une procédure validée', 8, 48);
+      ctx.fillText('[2]', 176, 48);
+      ctx.fillText('avec des droits restreints par service.', 8, 70);
+      ctx.fillText('[3]', 178, 70);
+      ctx.strokeStyle = '#8a7a5a';
+      ctx.beginPath(); ctx.moveTo(8, 88); ctx.lineTo(w - 8, 88); ctx.stroke();
+      ctx.fillStyle = '#8a7a5a'; ctx.font = '7px sans-serif';
+      ctx.fillText('[1] guide_admin.pdf p.12 — [2] proc_conn_v2.docx p.3 — [3] wiki §accès', 8, 100);
+      ctx.fillStyle = '#34d399'; ctx.font = 'bold 9px sans-serif';
+      ctx.fillText('✓ chaque affirmation a sa source vérifiable', 8, h - 8);
+    },
+
+    /* 20 — Garde-fous : PII détectée puis masquée. */
+    guard: function (ctx, w, h, t) {
+      ctx.fillStyle = '#f4f1e8'; ctx.fillRect(0, 0, w, h);
+      var k = (t / 2.4) % 1;
+      ctx.fillStyle = '#2f2113'; ctx.font = 'bold 9px sans-serif';
+      ctx.fillText('« …contact : jean.dupont@orange.fr …»', 8, 26);
+      if (k < 0.5) {
+        ctx.strokeStyle = '#c8453a'; ctx.lineWidth = 2;
+        ctx.strokeRect(112, 16, 116, 14);
+        ctx.fillStyle = '#c8453a'; ctx.font = 'bold 9px sans-serif';
+        ctx.fillText('⚠ PII détectée', 116, 52);
+      } else {
+        ctx.fillStyle = '#2f2113';
+        ctx.fillText('« …contact : [MASQUÉ] …»', 8, 26);
+        ctx.fillStyle = '#34d399'; ctx.font = 'bold 10px sans-serif';
+        ctx.fillText('✓ données personnelles masquées (RGPD)', 8, 52);
+        ctx.fillStyle = '#8a7a5a'; ctx.font = '7px sans-serif';
+        ctx.fillText('email · téléphone · adresse · NIR', 8, 70);
+      }
+    },
+
+    /* 21 — Quai d'audit : le journal défile. */
+    dock: function (ctx, w, h, t) {
+      ctx.fillStyle = '#0e1a24'; ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#4fd0c0'; ctx.font = '7px monospace';
+      var logs = [
+        '10:32:01  query: "connecter la base"',
+        '10:32:01  rewrite → 3 variantes',
+        '10:32:02  hybrid: BM25 24 + dense 18',
+        '10:32:02  rrf: fusion des rangs ok',
+        '10:32:03  rerank: top-3 gardés',
+        '10:32:04  llm: 412 tokens · 1,8 s',
+        '10:32:05  guard: PII masquées',
+        '10:32:05  eval: fidélité 0,95'
+      ];
+      for (var i = 0; i < logs.length; i++) {
+        var off = ((t * 1.6 + i / logs.length) % 1);
+        ctx.globalAlpha = 0.2 + 0.8 * off;
+        ctx.fillText(logs[i], 8, 14 + i * 13);
+      }
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#ffe9a8'; ctx.font = 'bold 9px sans-serif';
+      ctx.fillText('journal d\u2019audit — tout est tracé et rejouable', 8, h - 6);
+    },
+
+    /* 22 — Centre d'évaluation : les jauges RAGAS montent. */
+    eval: function (ctx, w, h, t) {
+      ctx.fillStyle = '#f4f1e8'; ctx.fillRect(0, 0, w, h);
+      var metrics = [['Fidélité', 0.95], ['Pertinence', 0.88], ['Rappel', 0.91]];
+      for (var i = 0; i < 3; i++) {
+        var y = 22 + i * 32;
+        ctx.fillStyle = '#2f2113'; ctx.font = 'bold 9px sans-serif';
+        ctx.fillText(metrics[i][0], 10, y);
+        ctx.fillStyle = '#e0dcc8'; ctx.fillRect(96, y - 9, 124, 11);
+        ctx.strokeStyle = '#8a7a5a'; ctx.lineWidth = 1;
+        ctx.strokeRect(96, y - 9, 124, 11);
+        var v = Math.min(1, (t / 1.6) * 1.2);
+        ctx.fillStyle = '#34d399';
+        ctx.fillRect(96, y - 9, 124 * Math.min(metrics[i][1], v), 11);
+        ctx.fillStyle = '#2f2113'; ctx.font = 'bold 8px sans-serif';
+        ctx.fillText((metrics[i][1] * 100) + '%', 228, y);
+      }
+      ctx.fillStyle = '#8a7a5a'; ctx.font = '7px sans-serif';
+      ctx.fillText('jeu de test (golden set) · RAGAS', 10, h - 22);
+      if (t > 1.4) {
+        ctx.fillStyle = '#34d399'; ctx.font = 'bold 12px sans-serif';
+        ctx.fillText('✓ SCORES OK — réponse livrée', 10, h - 6);
+      }
+    }
+  };
+
   /* ---- exports ----------------------------------------------------------- */
 
   /* What the cart is carrying, named on a tag above it so the change at each
@@ -1212,6 +1751,7 @@
     buildings: B,
     guests: GUESTS,
     lorryBed: LORRY_BED, lorryLoad: LORRY_LOAD,
+    details: DETAILS,
     draw: { tree: tree, bush: bush, lamp: lamp, bench: bench, guest: guest,
             truck: truck, lorry: lorry, paperStack: paperStack }
   };

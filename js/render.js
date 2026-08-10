@@ -477,10 +477,11 @@
     if (Renderer._lastLayout) Renderer._lastLayout.tag = { x: tag.x, y: tag.y, w: tag.w, h: tag.h };
   }
 
-  /* Stop signs, greedily placed so nothing overlaps: the cart tag is the
-     immovable object, the active stop is placed first, every other sign tries
-     its home position then a few nudges, and gives up rather than collide. */
-  function drawLabels(ctx, cam, activeId, tag) {
+  /* Stop signs, greedily placed so nothing overlaps: the cart tag and the
+     detail panel are immovable objects, the active stop is placed first,
+     every other sign tries its home position then a few nudges, and gives
+     up rather than collide. */
+  function drawLabels(ctx, cam, activeId, tag, detailBox) {
     if (cam.scale < 0.45) return;
     ctx.save();
     ctx.font = FONT_LABEL;
@@ -494,6 +495,7 @@
                          w: tag.w + TAG_PAD * 2, h: tag.h + TAG_PAD * 2 } : null;
     function collides(r) {
       if (tagBox && rectsOverlap(r, tagBox)) return true;
+      if (detailBox && rectsOverlap(r, detailBox)) return true;
       for (var i = 0; i < placed.length; i++) {
         if (rectsOverlap(r, placed[i])) return true;
       }
@@ -552,6 +554,85 @@
     /* debug: expose the laid-out text boxes so an automated test can prove
        that nothing ever overlaps */
     Renderer._lastLayout = { signs: placed.slice() };
+  }
+
+  /* ---- the "inside the document" panel -------------------------------------
+     When the cart is stopped at a stop, an XP window floats in the canvas
+     showing exactly what happens to the document there: the transformation
+     itself, animated. The panel is opaque, so the sign layout treats it as
+     an obstacle and no stop label ever slides underneath it. */
+
+  var DETAIL_W = 330, DETAIL_H = 196, DETAIL_TB = 22;
+
+  function detailPanelRect(viewW, viewH) {
+    var rightLimit = viewW - 10;
+    var g = document.getElementById('guide');
+    if (g && !g.classList.contains('hidden')) {
+      var gr = g.getBoundingClientRect();
+      if (gr.left > 0 && gr.left < viewW && gr.top < viewH * 0.6) {
+        rightLimit = gr.left - 10;
+      }
+    }
+    var w = DETAIL_W, h = DETAIL_H;
+    var x = Math.max(10, Math.min((viewW - w) / 2, rightLimit - w));
+    var y = 58;
+    return { x: x, y: y, w: w, h: h };
+  }
+
+  function drawDetailPanel(ctx, cam, clock, stop, s) {
+    if (!stop || !(s.dwellLeft > 0)) return;
+    var viewW = ctx.canvas.width / cam.dpr, viewH = ctx.canvas.height / cam.dpr;
+    var r = detailPanelRect(viewW, viewH);
+    var x = r.x, y = r.y, w = r.w, h = r.h;
+
+    /* drop shadow */
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillRect(x + 3, y + 3, w, h);
+    /* XP window body */
+    ctx.fillStyle = '#ece9d8';
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = '#0a0a0a'; ctx.lineWidth = 1;
+    ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+    ctx.strokeStyle = '#fff';
+    ctx.strokeRect(x + 1.5, y + 1.5, w - 3, h - 3);
+
+    /* XP title bar */
+    var g2 = ctx.createLinearGradient(0, y, 0, y + DETAIL_TB);
+    g2.addColorStop(0, '#0997ff'); g2.addColorStop(0.5, '#0050ee'); g2.addColorStop(1, '#003dd7');
+    ctx.fillStyle = g2;
+    ctx.fillRect(x + 2, y + 2, w - 4, DETAIL_TB - 2);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 11px "Trebuchet MS", Verdana, sans-serif';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText('\ud83d\udd0d ' + stop.name + ' — dans le document', x + 8, y + DETAIL_TB / 2 + 1);
+    /* fake XP window buttons */
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.font = 'bold 10px "Trebuchet MS", Verdana, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('_', x + w - 24, y + DETAIL_TB / 2 + 1);
+    ctx.fillText('\u25a1', x + w - 15, y + DETAIL_TB / 2 + 1);
+    ctx.textAlign = 'left';
+
+    /* animation area, clipped */
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x + 5, y + DETAIL_TB + 3, w - 10, h - DETAIL_TB - 8);
+    ctx.clip();
+    ctx.translate(x + 5, y + DETAIL_TB + 3);
+    var d = Park.details && Park.details[stop.id];
+    var t = (clock % 6);
+    if (d) {
+      d(ctx, w - 10, h - DETAIL_TB - 8, t, s);
+    } else {
+      ctx.fillStyle = '#f4f1e8'; ctx.fillRect(0, 0, w - 10, h - DETAIL_TB - 8);
+      ctx.fillStyle = '#3a3a3a';
+      ctx.font = 'bold 11px "Trebuchet MS", Verdana, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(Park.cargoLabels[s.cargo] || stop.name, (w - 10) / 2, (h - DETAIL_TB - 8) / 2);
+      ctx.textAlign = 'left';
+    }
+    ctx.restore();
+    ctx.textBaseline = 'alphabetic';
   }
 
   /* ---- frame ------------------------------------------------------------- */
@@ -623,8 +704,21 @@
     /* text last, on top of everything, with the cart tag as the immovable
        reference so the two never overlap no matter where the cart goes */
     var tag = cartTagRect(ctx, cam, cp, s);
-    if (showLabels) drawLabels(ctx, cam, activeId, tag);
+
+    /* the "inside the document" panel, if the cart is stopped at a stop:
+       its rectangle is an extra obstacle for the stop signs, so no label
+       is ever hidden underneath it */
+    var viewW = canvas.width / cam.dpr, viewH = canvas.height / cam.dpr;
+    var detailBox = null;
+    var detailStop = Park.stopById[Tour.state.stage];
+    if (detailStop && s.dwellLeft > 0) {
+      var dr = detailPanelRect(viewW, viewH);
+      detailBox = { x: dr.x - 4, y: dr.y - 4, w: dr.w + 8, h: dr.h + 8 };
+    }
+
+    if (showLabels) drawLabels(ctx, cam, activeId, tag, detailBox);
     drawCartTag(ctx, cam, cp, s, tag);
+    drawDetailPanel(ctx, cam, clock, detailStop, s);
   }
 
   function roundRect(ctx, x, y, w, h, r) {
