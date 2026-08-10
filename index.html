@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>RAGTycoon — Apprendre en fabriquant</title>
 <meta name="description" content="RAGTycoon : des sujets complexes appris par la simulation. Choisis un projet, puis un chapitre : le chariot se transforme à chaque étape, tu manipules, tu retiens." />
+<link rel="stylesheet" href="css/xp.css" />
 <link rel="stylesheet" href="css/styles.css" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%232f3945'/%3E%3Crect x='9' y='9' width='14' height='14' rx='2' fill='%233fb5a0'/%3E%3C/svg%3E" />
 </head>
@@ -21,31 +22,49 @@
   <div class="card-grid">
 
     <a class="card" href="projets/rag/index.html">
-      <span class="card-tag tag-project">Projet actif</span>
-      <h3>RAG &amp; IA d'entreprise</h3>
-      <p>Concevoir une architecture RAG fiable et moderne, de l'ingestion à l'évaluation — en vue du projet Orange.</p>
-      <div class="card-meta">5 chapitres · 1 disponible · simulation isométrique</div>
+      <div class="xp-titlebar">
+        <span class="xp-title-icon">📂</span>
+        <span>Projet actif</span>
+      </div>
+      <div class="card-inner">
+        <span class="card-tag tag-project">Projet actif</span>
+        <h3>RAG &amp; IA d'entreprise</h3>
+        <p>Concevoir une architecture RAG fiable et moderne, de l'ingestion à l'évaluation — en vue du projet Orange.</p>
+        <div class="card-meta">5 chapitres · 1 disponible · simulation isométrique</div>
+      </div>
     </a>
 
     <div class="card disabled">
       <span class="badge-soon">Bientôt</span>
-      <span class="card-tag tag-ch2">Projet à définir</span>
-      <h3>Ton prochain sujet</h3>
-      <p>Chaque nouveau projet d'apprentissage a son sommaire, ses chapitres et ses simulations — dis-moi le sujet et on le construit ensemble.</p>
-      <div class="card-meta">La plateforme est prête à l'accueillir</div>
+      <div class="xp-titlebar">
+        <span class="xp-title-icon">🗒️</span>
+        <span>Nouveau projet</span>
+      </div>
+      <div class="card-inner">
+        <span class="card-tag tag-ch2">Projet à définir</span>
+        <h3>Ton prochain sujet</h3>
+        <p>Chaque nouveau projet d'apprentissage a son sommaire, ses chapitres et ses simulations — dis-moi le sujet et on le construit ensemble.</p>
+        <div class="card-meta">La plateforme est prête à l'accueillir</div>
+      </div>
     </div>
 
   </div>
 
   <div class="section-title">La méthode</div>
   <div class="chapter-hero">
-    <h2>Pourquoi des simulations ?</h2>
-    <p>On retient quand on peut <b>mapper des concepts à des objets visibles</b> et qu'on est <b>actif</b> — pas quand on lit une liste.
-      Chaque chapitre est un parc où un chariot transporte le « matériau » du sujet et le transforme à chaque étape. Tu peux
-      stopper, relancer, sauter à n'importe quelle étape, zoomer, cliquer sur chaque bâtiment pour lire son explication.
-      Inspiré de la méthode « How I use LLMs to learn » (Laurentiu Raducu) et de ChipTycoon.</p>
-    <p class="controls-hint"><b>Navigation :</b> choisis un projet ci-dessus, puis un chapitre. Depuis une simulation, le bouton
-      <b>☰ Sommaire</b> (en haut à droite) te ramène au projet, et le fil d'Ariane ramène à l'accueil.</p>
+    <div class="xp-titlebar">
+      <span class="xp-title-icon">💡</span>
+      <span>La méthode</span>
+    </div>
+    <div class="hero-inner">
+      <h2>Pourquoi des simulations ?</h2>
+      <p>On retient quand on peut <b>mapper des concepts à des objets visibles</b> et qu'on est <b>actif</b> — pas quand on lit une liste.
+        Chaque chapitre est un parc où un chariot transporte le « matériau » du sujet et le transforme à chaque étape. Tu peux
+        stopper, relancer, sauter à n'importe quelle étape, zoomer, cliquer sur chaque bâtiment pour lire son explication.
+        Inspiré de la méthode « How I use LLMs to learn » (Laurentiu Raducu) et de ChipTycoon.</p>
+      <p class="controls-hint"><b>Navigation :</b> choisis un projet ci-dessus, puis un chapitre. Depuis une simulation, le bouton
+        <b>☰ Sommaire</b> (en haut à droite) te ramène au projet, et le fil d'Ariane ramène à l'accueil.</p>
+    </div>
   </div>
 
 </div>

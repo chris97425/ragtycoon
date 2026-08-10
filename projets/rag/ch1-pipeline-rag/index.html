@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Chapitre 1 · Le pipeline RAG — RAGTycoon</title>
 <meta name="description" content="Une visite guidée isométrique de l'usine RAG. Un chariot porte un document d'une pile de fichiers bruts jusqu'à une réponse citée et évaluée, en s'arrêtant aux vingt-deux étapes du chemin." />
+<link rel="stylesheet" href="../../../css/xp.css" />
 <link rel="stylesheet" href="../../../css/styles.css" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%232f3945'/%3E%3Crect x='9' y='9' width='14' height='14' rx='2' fill='%233fb5a0'/%3E%3C/svg%3E" />
 </head>
@@ -42,6 +43,12 @@
 </div>
 
 <aside class="guide" id="guide">
+  <div class="xp-titlebar">
+    <span class="xp-title-icon">🗺️</span>
+    <span>Guide du parc</span>
+    <span class="xp-title-spacer"></span>
+    <span class="xp-tb-btn">_</span><span class="xp-tb-btn">□</span><span class="xp-tb-btn">×</span>
+  </div>
   <!-- Sur téléphone le guide est une feuille en bas : la tête reste visible et
        tout ce qui est sous la poignée se replie, pour ne jamais enterrer le parc. -->
   <button class="sheet-handle" id="sheet-handle" aria-expanded="false" aria-controls="guide-more">
@@ -50,6 +57,7 @@
     <span class="sheet-caret" aria-hidden="true">▾</span>
   </button>
 
+  <div class="guide-body">
   <div class="stop-head">
     <div class="eyebrow">
       <span class="chip act1" id="ui-chip">Arrêt 1 sur 22</span>
@@ -86,6 +94,7 @@
         où des rangées d'indicateurs s'allument à chaque livraison. Puis le camion revient et le document suivant commence.</p>
     </section>
   </div>
+  </div><!-- /guide-body -->
 </aside>
 
 <footer class="dock" id="dock">
@@ -111,7 +120,13 @@
 
 <div class="modal" id="about" hidden>
   <div class="modal-card">
-    <button class="modal-close" id="about-close" aria-label="Fermer">×</button>
+    <div class="xp-titlebar">
+      <span class="xp-title-icon">ℹ️</span>
+      <span>À propos de RAGTycoon</span>
+      <span class="xp-title-spacer"></span>
+      <button class="modal-close" id="about-close" aria-label="Fermer">×</button>
+    </div>
+    <div class="modal-inner">
     <h2>Ce que c'est</h2>
     <p>RAGTycoon est une usine RAG complète présentée comme un parc d'attractions. Un chariot porte un document le long des routes
       et s'arrête à chacun des bâtiments qui transforment des fichiers bruts en une réponse vérifiée. La cargaison du chariot est le
@@ -145,6 +160,7 @@
       beaucoup plus, un document au lieu d'un flux, et un parc que l'on traverse en une minute au lieu d'une plateforme entière.</p>
     <p class="fine">Aucune étape de build, aucune dépendance, aucun appel réseau. Chaque forme à l'écran est dessinée à partir de
       polygones simples dans un canvas.</p>
+    </div><!-- /modal-inner -->
   </div>
 </div>
 

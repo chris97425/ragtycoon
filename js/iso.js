@@ -1,7 +1,8 @@
 /* iso.js: the isometric canvas engine.
    Grid space: x runs toward the lower right, y toward the lower left, z up.
    Shading is deliberately high contrast so solids read as chunky painted
-   models rather than a soft render. */
+   models rather than a soft render. Side faces get a vertical gradient so
+   solids read as properly lit volumes, not flat stickers. */
 (function (global) {
   'use strict';
 
@@ -89,9 +90,22 @@
   /* Face factors. The wide gap between them is what gives solids their chunky
      toy look; softer values read as a render instead of a painted model. */
   var TOP = 1.06, RIGHT = 0.84, LEFT = 0.62;
-  var EDGE = 'rgba(38,26,14,0.34)';
+  var EDGE = 'rgba(38,26,14,0.30)';
 
-  /* Axis aligned box. o = {x,y,z,w,d,h,color,top,edge,alpha} */
+  /* Vertical gradient fill for a side face: lighter where the light catches
+     the top edge, darker at the base. Gives the chunky boxes real volume. */
+  function gradQuad(ctx, pts, c, fTop, fBot) {
+    var yTop = Math.min(pts[0].y, pts[1].y, pts[2].y, pts[3].y);
+    var yBot = Math.max(pts[0].y, pts[1].y, pts[2].y, pts[3].y);
+    if (yBot - yTop < 2) { ctx.fillStyle = shade(c, (fTop + fBot) / 2); poly(ctx, pts); return; }
+    var g = ctx.createLinearGradient(0, yTop, 0, yBot);
+    g.addColorStop(0, shade(c, fTop));
+    g.addColorStop(1, shade(c, fBot));
+    ctx.fillStyle = g;
+    poly(ctx, pts);
+  }
+
+  /* Axis aligned box. o = {x,y,z,w,d,h,color,top,edge,alpha,roof} */
   function box(ctx, o) {
     var x = o.x, y = o.y, z = o.z || 0, w = o.w, d = o.d, h = o.h, c = o.color;
     var t = z + h;
@@ -101,8 +115,9 @@
         C = project(x + w, y + d, t), D = project(x, y + d, t);
     var Bb = project(x + w, y, z), Cb = project(x + w, y + d, z), Db = project(x, y + d, z);
 
-    ctx.fillStyle = shade(c, LEFT);  poly(ctx, [B, C, Cb, Bb]);
-    ctx.fillStyle = shade(c, RIGHT); poly(ctx, [D, C, Cb, Db]);
+    /* side faces with a top-lit gradient */
+    gradQuad(ctx, [B, C, Cb, Bb], c, 0.86, 0.56);
+    gradQuad(ctx, [D, C, Cb, Db], c, 0.68, 0.46);
     ctx.fillStyle = shade(o.top || c, TOP); poly(ctx, [A, B, C, D]);
 
     if (o.edge !== false) {
@@ -138,8 +153,7 @@
     }
     faces.sort(function (a, b) { return a.depth - b.depth; });
     for (i = 0; i < faces.length; i++) {
-      ctx.fillStyle = shade(color, faces[i].f);
-      poly(ctx, faces[i].quad);
+      gradQuad(ctx, faces[i].quad, color, faces[i].f + 0.08, faces[i].f - 0.12);
     }
     ctx.fillStyle = shade(color, TOP);
     poly(ctx, top);
@@ -172,9 +186,9 @@
     var C = project(x + w, y + d, z), D = project(x, y + d, z);
     var R1 = project(x, my, tz), R2 = project(x + w, my, tz);
 
-    ctx.fillStyle = shade(c, 1.10); poly(ctx, [A, B, R2, R1]);
+    gradQuad(ctx, [A, B, R2, R1], c, 1.14, 1.02);
     ctx.fillStyle = shade(c, 0.60); poly(ctx, [B, R2, C]);
-    ctx.fillStyle = shade(c, 0.86); poly(ctx, [D, C, R2, R1]);
+    gradQuad(ctx, [D, C, R2, R1], c, 0.92, 0.80);
     if (o.edge !== false) {
       ctx.strokeStyle = EDGE; ctx.lineWidth = 1; ctx.lineJoin = 'round';
       stroke(ctx, [A, B, R2, R1], true);
@@ -188,7 +202,11 @@
     var a = r * TW * 1.41421, b = r * TH * 1.41421;
     var top = project(o.x, o.y, z + h), bot = project(o.x, o.y, z);
 
-    ctx.fillStyle = shade(c, LEFT);
+    /* side with a vertical gradient for volume */
+    var g = ctx.createLinearGradient(0, top.y, 0, bot.y);
+    g.addColorStop(0, shade(c, 0.72));
+    g.addColorStop(1, shade(c, 0.50));
+    ctx.fillStyle = g;
     ctx.beginPath();
     ctx.ellipse(bot.x, bot.y, a, b, 0, 0, Math.PI);
     ctx.lineTo(top.x - a, top.y);
@@ -268,10 +286,20 @@
     ]);
   }
 
-  /* Soft contact shadow under a solid. */
-  function shadow(ctx, x, y, r) {
-    ctx.fillStyle = 'rgba(30,50,20,0.20)';
-    disc(ctx, x, y, 0.01, r);
+  /* Soft contact shadow under a solid: a radial gradient ellipse, so it reads
+     as a real pool of shade rather than a flat disc. */
+  function shadow(ctx, x, y, r, strength) {
+    var p = project(x, y, 0.01);
+    var a = r * TW * 1.41421, b = r * TH * 1.41421;
+    var s = strength == null ? 0.20 : strength;
+    var g = ctx.createRadialGradient(p.x, p.y, 1, p.x, p.y, Math.max(a, b));
+    g.addColorStop(0, 'rgba(30,50,20,' + s.toFixed(3) + ')');
+    g.addColorStop(0.7, 'rgba(30,50,20,' + (s * 0.6).toFixed(3) + ')');
+    g.addColorStop(1, 'rgba(30,50,20,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y, a, b, 0, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   global.Iso = {

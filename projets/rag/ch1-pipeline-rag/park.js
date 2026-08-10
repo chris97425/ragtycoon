@@ -1,6 +1,8 @@
 /* park.js: the layout of the RAG park — a document factory laid out as a theme park.
    Routes the document cart drives, the stops it halts at, the buildings, and the
-   scenery. Everything here is static data plus one painter per building. */
+   scenery. Everything here is static data plus one painter per building.
+   Buildings are drawn with real depth: layered boxes, lit windows, chimneys,
+   roof ridges and glowing signs. */
 (function (global) {
   'use strict';
 
@@ -344,23 +346,93 @@
 
   /* shared bits ---------------------------------------------------------- */
 
-  function hall(ctx, x, y, w, d, h, body, roofC) {
+  /* Factory hall: body box + gabled roof with a ridge cap + optional lit
+     windows on the front wall and a sign. */
+  function hall(ctx, x, y, w, d, h, body, roofC, opts, t) {
+    opts = opts || {};
     Iso.box(ctx, { x: x, y: y, w: w, d: d, h: h, color: body });
     Iso.gable(ctx, { x: x, y: y, z: h, w: w, d: d, h: Math.min(1.6, d * 0.34), color: roofC });
+    /* ridge cap along the roof peak */
+    var my = y + d / 2;
+    Iso.box(ctx, { x: x, y: my - 0.12, z: h + Math.min(1.6, d * 0.34) - 0.1, w: w, d: 0.24, h: 0.16,
+                   color: Iso.mix(roofC, '#000000', 0.25) });
+    if (opts.windows) windowRow(ctx, x + 0.4, y + d, h * 0.45, h * 0.78, opts.windows, opts.winT);
+    if (opts.sign) sign(ctx, x + w / 2, y + d, h + 0.1, opts.sign, opts.signC || C.gold);
+    if (opts.chimney) chimney(ctx, x + w * 0.7, y + d * 0.25, h, opts.chimney, t);
   }
 
+  /* A row of lit windows on the wall facing the camera at y = yFace. */
+  function windowRow(ctx, x0, yFace, z0, z1, n, t) {
+    var step = 0.62;
+    for (var i = 0; i < n; i++) {
+      var wx = x0 + i * step;
+      var lit = t ? (Math.sin(t * 2 + i * 1.7) > -0.4) : (i % 3 !== 1);
+      ctx.fillStyle = lit ? 'rgba(255,214,120,0.85)' : 'rgba(30,42,54,0.75)';
+      faceRect(ctx, yFace, wx, z0, wx + 0.34, z1);
+      ctx.strokeStyle = 'rgba(60,42,20,0.55)';
+      ctx.lineWidth = 0.8;
+      Iso.stroke(ctx, [Iso.project(wx, yFace, z1), Iso.project(wx + 0.34, yFace, z1),
+                       Iso.project(wx + 0.34, yFace, z0), Iso.project(wx, yFace, z0)], true);
+    }
+  }
+
+  function faceRect(ctx, yFace, x0, z0, x1, z1) {
+    Iso.poly(ctx, [Iso.project(x0, yFace, z1), Iso.project(x1, yFace, z1),
+                   Iso.project(x1, yFace, z0), Iso.project(x0, yFace, z0)]);
+  }
+
+  /* A chimney with a wisp of smoke. */
+  function chimney(ctx, x, y, z, h, t) {
+    Iso.box(ctx, { x: x, y: y, w: 0.42, d: 0.42, h: h, color: '#7a4a32' });
+    Iso.box(ctx, { x: x - 0.06, y: y - 0.06, z: z + h - 0.08, w: 0.54, d: 0.54, h: 0.1, color: '#5e3a26' });
+    if (t != null) {
+      for (var i = 0; i < 2; i++) {
+        var k = ((t * 0.4) + i / 2) % 1;
+        var p = Iso.project(x + 0.2, y + 0.2, z + h + k * 2.2);
+        ctx.fillStyle = 'rgba(235,235,235,' + (0.4 * (1 - k)).toFixed(3) + ')';
+        ctx.beginPath();
+        ctx.arc(p.x + Math.sin(k * 3 + i * 2) * 5, p.y, 3 + k * 6, 0, 6.2832);
+        ctx.fill();
+      }
+    }
+  }
+
+  /* A glowing sign plate on a wall. */
+  function sign(ctx, x, yFace, z, text, colour) {
+    var p = Iso.project(x, yFace, z);
+    ctx.font = 'bold 13px "Trebuchet MS", Verdana, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    var w = ctx.measureText(text).width + 16;
+    ctx.fillStyle = 'rgba(20,16,10,0.45)';
+    ctx.fillRect(p.x - w / 2 + 1, p.y - 10, w, 22);
+    ctx.fillStyle = '#22303f';
+    ctx.fillRect(p.x - w / 2, p.y - 11, w, 22);
+    ctx.strokeStyle = colour; ctx.lineWidth = 2;
+    ctx.strokeRect(p.x - w / 2, p.y - 11, w, 22);
+    ctx.fillStyle = colour;
+    ctx.fillText(text, p.x, p.y + 1);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  }
+
+  /* A control machine: base, body, screen and a blinking lamp. */
   function machine(ctx, x, y, w, d, h, c, t, blinkSeed) {
     Iso.box(ctx, { x: x, y: y, w: w, d: d, h: 0.22, color: C.dark });
     Iso.box(ctx, { x: x + 0.1, y: y + 0.1, z: 0.22, w: w - 0.2, d: d - 0.2, h: h, color: c });
-    var p = Iso.project(x + w * 0.5, y + d, 0.22 + h * 0.6);
+    /* console screen on the front */
+    var p = Iso.project(x + w * 0.5, y + d, 0.22 + h * 0.62);
     ctx.fillStyle = '#22303f';
     ctx.fillRect(p.x - 9, p.y - 8, 18, 12);
     ctx.fillStyle = '#4fd0c0';
     ctx.fillRect(p.x - 7, p.y - 6, 8, 8);
+    /* status lamp */
     ctx.fillStyle = (Math.sin(t * 4 + (blinkSeed || 0)) > 0) ? '#ff5f4d' : '#5c2b26';
     ctx.beginPath(); ctx.arc(p.x + 5, p.y - 2, 2.4, 0, 6.2832); ctx.fill();
+    /* feet */
+    Iso.box(ctx, { x: x + 0.12, y: y + 0.12, w: 0.18, d: d - 0.24, h: 0.08, color: '#39424e', edge: false });
+    Iso.box(ctx, { x: x + w - 0.3, y: y + 0.12, w: 0.18, d: d - 0.24, h: 0.08, color: '#39424e', edge: false });
   }
 
+  /* A pulsing ground glow under a machine. */
   function glow(ctx, x, y, z, r, t, c1, c2) {
     var k = 0.82 + 0.18 * Math.sin(t * 2.4);
     ctx.globalAlpha = k;
@@ -371,11 +443,12 @@
     ctx.globalAlpha = 1;
   }
 
-  function smoke(ctx, x, y, z, t) {
+  /* A puff of steam/thought rising from a point. */
+  function smoke(ctx, x, y, z, t, colour) {
     for (var i = 0; i < 3; i++) {
       var k = ((t * 0.34) + i / 3) % 1;
       var p = Iso.project(x, y, z + k * 3.4);
-      ctx.fillStyle = 'rgba(255,255,255,' + (0.5 * (1 - k)).toFixed(3) + ')';
+      ctx.fillStyle = (colour || 'rgba(255,255,255,') + (0.5 * (1 - k)).toFixed(3) + ')';
       ctx.beginPath();
       ctx.arc(p.x + Math.sin(k * 4 + i) * 7, p.y, 5 + k * 11, 0, 6.2832);
       ctx.fill();
@@ -401,52 +474,49 @@
     }
   }
 
+  /* A screen on the front wall with crawling lines of text. */
   function docScreen(ctx, x, y, z, w, h, t, lines, c) {
     var p = Iso.project(x, y, z);
     ctx.fillStyle = '#16324a';
     ctx.fillRect(p.x - w / 2, p.y - h / 2, w, h);
     ctx.strokeStyle = c || '#4fd0c0';
     ctx.lineWidth = 1.4;
+    ctx.strokeRect(p.x - w / 2, p.y - h / 2, w, h);
     for (var k = 0; k < lines; k++) {
-      var off = ((t * 8 + k * 9) % (w - 8)) ;
+      var off = ((t * 8 + k * 9) % (w - 12));
       ctx.beginPath();
-      ctx.moveTo(p.x - w / 2 + 4, p.y - h / 2 + 6 + k * (h - 10) / lines);
-      ctx.lineTo(p.x - w / 2 + 4 + off, p.y - h / 2 + 6 + k * (h - 10) / lines);
+      ctx.moveTo(p.x - w / 2 + 6, p.y - h / 2 + 6 + k * (h - 12) / lines);
+      ctx.lineTo(p.x - w / 2 + 6 + off, p.y - h / 2 + 6 + k * (h - 12) / lines);
       ctx.stroke();
     }
-  }
-
-  function sign(ctx, x, yFace, z, text, colour) {
-    var p = Iso.project(x, yFace, z);
-    ctx.font = 'bold 13px "Trebuchet MS", Verdana, sans-serif';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    var w = ctx.measureText(text).width + 16;
-    ctx.fillStyle = '#22303f';
-    ctx.fillRect(p.x - w / 2, p.y - 11, w, 22);
-    ctx.strokeStyle = colour; ctx.lineWidth = 2;
-    ctx.strokeRect(p.x - w / 2, p.y - 11, w, 22);
-    ctx.fillStyle = colour;
-    ctx.fillText(text, p.x, p.y + 1);
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-  }
-
-  function faceRect(ctx, yFace, x0, z0, x1, z1) {
-    Iso.poly(ctx, [Iso.project(x0, yFace, z1), Iso.project(x1, yFace, z1),
-                   Iso.project(x1, yFace, z0), Iso.project(x0, yFace, z0)]);
   }
 
   /* --- act 1: ingestion --------------------------------------------------- */
 
   add({ id: 'warehouse', x: 2.2, y: 3.6, w: 7.6, d: 5.6, draw: function (ctx, b, t) {
-    hall(ctx, 2.6, 4.0, 7.0, 4.8, 1.9, '#b9c3cd', C.brick);
+    /* big storage hall with a saw-tooth roof line */
+    Iso.box(ctx, { x: 2.6, y: 4.0, w: 7.0, d: 4.8, h: 2.0, color: '#aeb8c4' });
+    Iso.gable(ctx, { x: 2.6, y: 4.0, z: 2.0, w: 7.0, d: 4.8, h: 1.2, color: C.brick });
+    var my = 4.0 + 4.8 / 2;
+    Iso.box(ctx, { x: 2.6, y: my - 0.12, z: 3.1, w: 7.0, d: 0.24, h: 0.18, color: '#7a2e1f' });
+    /* loading door, tall and dark */
+    faceRect(ctx, 8.8, 4.4, 0, 5.6, 1.9);
+    ctx.fillStyle = '#2b343d';
+    faceRect(ctx, 8.8, 4.4, 0, 5.6, 1.9);
+    ctx.strokeStyle = 'rgba(60,42,20,0.6)'; ctx.lineWidth = 1;
+    Iso.stroke(ctx, [Iso.project(4.4, 8.8, 1.9), Iso.project(5.6, 8.8, 1.9),
+                     Iso.project(5.6, 8.8, 0), Iso.project(4.4, 8.8, 0)], true);
+    windowRow(ctx, 2.9, 8.8, 0.5, 0.85, 6, t);
     /* stacks of raw documents outside the door */
-    paperStack(ctx, 3.4, 8.2, 0, 6, '#e3dcc8');
-    paperStack(ctx, 5.0, 8.2, 0, 5, '#d5cdb6');
-    paperStack(ctx, 6.4, 8.0, 0, 4, '#efe9d8');
+    paperStack(ctx, 3.4, 8.6, 0, 6, '#e3dcc8');
+    paperStack(ctx, 5.0, 8.6, 0, 5, '#d5cdb6');
+    paperStack(ctx, 6.4, 8.4, 0, 4, '#efe9d8');
     /* a forklift trolley carrying a sheet */
     var k = Math.sin(t * 0.5) * 0.5 + 0.5;
-    Iso.box(ctx, { x: 4.0 + k * 2.2, y: 6.6, w: 1.0, d: 0.8, h: 0.3, color: C.gold });
-    sheet(ctx, 4.15 + k * 2.2, 6.7, 0.3, 0.7, 0.9, C.paper);
+    Iso.box(ctx, { x: 4.0 + k * 2.2, y: 6.8, w: 1.0, d: 0.8, h: 0.3, color: C.gold });
+    Iso.box(ctx, { x: 4.0 + k * 2.2, y: 6.8, z: 0.3, w: 0.9, d: 0.7, h: 0.14, color: '#b98a2a' });
+    sheet(ctx, 4.15 + k * 2.2, 6.9, 0.44, 0.7, 0.9, C.paper);
+    chimney(ctx, 8.2, 4.6, 2.0, 1.1, t);
   }});
 
   add({ id: 'parser', x: 11.4, y: 3.8, w: 7.2, d: 5.4, draw: function (ctx, b, t) {
@@ -454,25 +524,37 @@
     /* scanner bed with a sheet sliding through */
     var k = (t * 0.4) % 1;
     Iso.box(ctx, { x: 12.4 + k * 3.4, y: 6.0, z: 1.2, w: 1.6, d: 1.1, h: 0.1, color: C.paper });
-    ctx.fillStyle = 'rgba(79,208,192,0.5)';
+    ctx.fillStyle = 'rgba(79,208,192,0.45)';
     Iso.quad(ctx, 12.2, 5.4, 5.4, 2.2, 1.22);
-    /* the scan beam */
+    /* the scan beam sweeping */
     var b1 = Iso.project(13.6, 5.6, 2.4), b2 = Iso.project(13.6 + 3.2, 5.6, 2.4);
     ctx.strokeStyle = '#4fd0c0'; ctx.lineWidth = 2.4; ctx.globalAlpha = 0.5 + 0.4 * Math.sin(t * 5);
     ctx.beginPath(); ctx.moveTo(b1.x, b1.y); ctx.lineTo(b2.x, b2.y); ctx.stroke();
     ctx.globalAlpha = 1;
-    machine(ctx, 16.6, 4.4, 1.5, 1.6, 1.3, '#7fb3d4', t, 1);
+    /* the OCR tower with a blinking eye */
+    Iso.box(ctx, { x: 16.2, y: 4.2, w: 1.6, d: 1.6, h: 2.6, color: '#5b6470' });
+    var ep = Iso.project(17.0, 4.9, 2.6);
+    ctx.fillStyle = (Math.sin(t * 3) > 0) ? '#7fd4e8' : '#1f3a4a';
+    ctx.beginPath(); ctx.arc(ep.x, ep.y, 4, 0, 6.2832); ctx.fill();
+    machine(ctx, 16.6, 7.2, 1.5, 1.6, 1.1, '#7fb3d4', t, 1);
   }});
 
   add({ id: 'cleaner', x: 20.2, y: 3.8, w: 7.6, d: 5.4, draw: function (ctx, b, t) {
-    hall(ctx, 20.6, 4.2, 6.6, 4.4, 1.8, '#dfe7ee', C.blue);
+    hall(ctx, 20.6, 4.2, 6.6, 4.4, 1.8, '#dfe7ee', C.blue, { windows: 5, winT: t, sign: 'PROPRE' });
     /* dust particles being blown off a sheet */
     var p = Iso.project(23.6, 6.4, 1.1);
     ctx.fillStyle = C.paper;
     ctx.fillRect(p.x - 24, p.y - 8, 48, 16);
-    for (var i = 0; i < 5; i++) {
-      var k = ((t * 0.8) + i / 5) % 1;
-      var dp = Iso.project(24.4 + Math.sin(k * 6 + i) * 1.6, 6.2 - k * 1.2, 1.15 + k * 0.8);
+    ctx.strokeStyle = 'rgba(70,60,45,0.5)'; ctx.lineWidth = 1.2;
+    for (var i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.moveTo(p.x - 18, p.y - 4 + i * 4);
+      ctx.lineTo(p.x + 12, p.y - 4 + i * 4);
+      ctx.stroke();
+    }
+    for (var d2 = 0; d2 < 5; d2++) {
+      var k = ((t * 0.8) + d2 / 5) % 1;
+      var dp = Iso.project(24.4 + Math.sin(k * 6 + d2) * 1.6, 6.2 - k * 1.2, 1.15 + k * 0.8);
       ctx.fillStyle = 'rgba(90,80,60,' + (0.8 * (1 - k)).toFixed(2) + ')';
       ctx.beginPath(); ctx.arc(dp.x, dp.y, 2.5, 0, 6.2832); ctx.fill();
     }
@@ -490,52 +572,74 @@
       Iso.box(ctx, { x: 33.2 + ck * 2.6, y: 7.0 + Math.sin(ck * 6 + i) * 0.3, z: 0.92,
                      w: 0.5, d: 0.42, h: 0.3, color: cols[i] });
     }
-    /* the cutter: vertical blades */
+    /* the cutter tower: vertical blades with a light bar */
+    Iso.box(ctx, { x: 31.6, y: 4.6, w: 1.2, d: 3.4, h: 1.6, color: '#5b6470' });
     ctx.strokeStyle = '#8d99a6'; ctx.lineWidth = 3;
     for (var c2 = 0; c2 < 3; c2++) {
       var cp = Iso.project(32.0 + c2 * 0.5, 5.2, 0.9);
       ctx.beginPath(); ctx.moveTo(cp.x, cp.y - 18); ctx.lineTo(cp.x, cp.y + 18); ctx.stroke();
     }
+    var lb = Iso.project(32.2, 7.6, 1.7);
+    ctx.fillStyle = (Math.sin(t * 4) > 0) ? '#ff9a3c' : '#5c2b26';
+    ctx.beginPath(); ctx.arc(lb.x, lb.y, 3, 0, 6.2832); ctx.fill();
+    /* out-tray of fresh chunks */
+    chunkPile2(ctx, 36.6, 8.2, 0, 3);
   }});
+
+  function chunkPile2(ctx, x, y, z, n) {
+    var cols = ['#3f7fd4', '#9a5fd0', '#c9793f', '#3fb5a0'];
+    for (var i = 0; i < n; i++) {
+      Iso.box(ctx, { x: x - 0.4 + (i % 2) * 0.36, y: y - 0.34 + Math.floor(i / 2) * 0.36,
+                     z: z, w: 0.32, d: 0.3, h: 0.22, color: cols[i % 4] });
+    }
+  }
 
   add({ id: 'enricher', x: 38.2, y: 3.8, w: 7.6, d: 5.4, draw: function (ctx, b, t) {
     Iso.box(ctx, { x: 38.6, y: 4.2, w: 6.6, d: 4.6, h: 1.4, color: '#a8b4c0' });
-    /* chunks passing under a tag stamper */
+    /* conveyor of chunks under a tag stamper */
+    Iso.box(ctx, { x: 38.8, y: 5.9, w: 6.2, d: 1.3, h: 0.25, color: '#39424e' });
     var k = (t * 0.45) % 1;
     for (var i = 0; i < 4; i++) {
       var ck = ((k + i * 0.22) % 1);
       Iso.box(ctx, { x: 39.6 + ck * 4.4, y: 6.2, z: 1.4, w: 0.5, d: 0.42, h: 0.3,
                      color: i % 2 ? '#3f7fd4' : '#9a5fd0' });
-      /* a little golden tag on top */
       Iso.box(ctx, { x: 39.6 + ck * 4.4, y: 6.2, z: 1.7, w: 0.3, d: 0.2, h: 0.12, color: C.gold });
     }
-    /* the stamper arm */
+    /* the stamper arm with a golden tag */
     var dip = Math.abs(Math.sin(t * 2)) * 0.4;
     var sp = Iso.project(42.6, 5.0, 2.6 - dip);
     ctx.fillStyle = '#5f6b78'; ctx.fillRect(sp.x - 14, sp.y - 20, 28, 20);
     ctx.fillStyle = C.gold; ctx.fillRect(sp.x - 10, sp.y - 8, 20, 6);
+    /* metadata cabinet */
+    Iso.box(ctx, { x: 43.8, y: 7.6, w: 1.6, d: 1.0, h: 0.9, color: '#c4ccd4' });
+    for (var m = 0; m < 3; m++) {
+      ctx.fillStyle = C.gold;
+      faceRect(ctx, 8.6, 44.0, 0.25 + m * 0.28, 44.5, 0.4 + m * 0.28);
+    }
   }});
 
   add({ id: 'dedup', x: 47.2, y: 3.8, w: 7.6, d: 5.4, draw: function (ctx, b, t) {
     Iso.box(ctx, { x: 47.6, y: 4.2, w: 6.8, d: 4.6, h: 1.1, color: C.steel });
+    Iso.box(ctx, { x: 47.6, y: 4.2, z: 1.1, w: 6.8, d: 4.6, h: 0.5, color: '#8a97a5' });
     /* two stacks in, one clean stack out */
     paperStack(ctx, 48.4, 5.8, 1.12, 4, '#d5cdb6');
     paperStack(ctx, 51.2, 5.8, 1.12, 3, '#d5cdb6');
     var k = (t * 0.5) % 1;
     Iso.box(ctx, { x: 49.6 + k * 2.4, y: 8.0, z: 1.12, w: 0.7, d: 0.6, h: 0.26, color: C.paper });
-    /* fingerprint scanner */
+    /* fingerprint scanner glowing */
     var fp = Iso.project(52.6, 5.0, 1.5);
     ctx.fillStyle = '#22303f'; ctx.beginPath(); ctx.arc(fp.x, fp.y, 9, 0, 6.2832); ctx.fill();
     ctx.strokeStyle = '#4fd0c0'; ctx.lineWidth = 1.6;
     ctx.beginPath(); ctx.arc(fp.x, fp.y, 5, 0, 6.2832); ctx.stroke();
     ctx.beginPath(); ctx.arc(fp.x, fp.y, 3, 0, 6.2832); ctx.stroke();
+    glow(ctx, 52.6, 5.0, 1.62, 0.7, t, 'rgba(79,208,192,0.5)', 'rgba(79,208,192,0.2)');
   }});
 
   /* --- act 2: indexing ---------------------------------------------------- */
 
   add({ id: 'embed', x: 41.8, y: 11.8, w: 8.4, d: 4.8, draw: function (ctx, b, t) {
-    hall(ctx, 42.0, 12.0, 8.0, 4.2, 2.0, '#e5eaf0', '#4d7fb5');
-    /* the encoder: chunks in, glowing vectors out */
+    hall(ctx, 42.0, 12.0, 8.0, 4.2, 2.0, '#e5eaf0', '#4d7fb5', { windows: 6, winT: t });
+    /* the encoder: three columns of light */
     for (var i = 0; i < 3; i++) Iso.cylinder(ctx, { x: 44.6 + i * 2.2, y: 14.6, r: 0.55, h: 1.4, color: '#7fb3d4' });
     for (var j = 0; j < 4; j++) {
       var p = Iso.project(44.3 + j * 1.5, 16.4, 1.0);
@@ -543,10 +647,18 @@
       ctx.beginPath(); ctx.arc(p.x, p.y, 4.5, 0, 6.2832); ctx.fill();
     }
     docScreen(ctx, 48.0, 12.6, 44, 26, t, 4, '#22d3ee');
+    /* orbiting vectors on the roof */
+    for (var v = 0; v < 5; v++) {
+      var a = t * 0.8 + v * 1.26;
+      var vp = Iso.project(46.0 + Math.cos(a) * 3.2, 14.1 + Math.sin(a) * 1.4, 2.4);
+      ctx.fillStyle = 'rgba(34,211,238,0.8)';
+      ctx.beginPath(); ctx.arc(vp.x, vp.y, 3, 0, 6.2832); ctx.fill();
+    }
   }});
 
   add({ id: 'vector', x: 31.8, y: 11.8, w: 8.4, d: 4.8, draw: function (ctx, b, t) {
     Iso.box(ctx, { x: 32.0, y: 12.0, w: 8.0, d: 4.2, h: 2.4, color: '#dfe6ec', top: '#c3ccd6' });
+    Iso.box(ctx, { x: 32.0, y: 12.0, z: 2.4, w: 8.0, d: 4.2, h: 0.22, color: '#aeb8c2' });
     /* the rack halls, seen through the long window on the front wall */
     for (var i = 0; i < 7; i++) {
       var x0 = 32.5 + i * 0.92, x1 = x0 + 0.7;
@@ -562,10 +674,12 @@
     Iso.stroke(ctx, [Iso.project(32.5, 16.2, 2.3), Iso.project(39.6, 16.2, 2.3),
                      Iso.project(39.6, 16.2, 0.6), Iso.project(32.5, 16.2, 0.6)], true);
     sign(ctx, 38.4, 16.2, 2.5, 'HNSW', '#34d399');
+    /* chillers on the roof */
+    for (var f = 0; f < 3; f++) fan(ctx, 33.6 + f * 2.4, 13.6, 2.62, t * (2.2 + f * 0.4));
   }});
 
   add({ id: 'filter', x: 21.8, y: 11.8, w: 8.4, d: 4.8, draw: function (ctx, b, t) {
-    hall(ctx, 22.0, 12.0, 8.0, 4.2, 2.0, '#eef4f9', '#7a6ba8');
+    hall(ctx, 22.0, 12.0, 8.0, 4.2, 2.0, '#eef4f9', '#7a6ba8', { windows: 6, winT: t, sign: 'ACCÈS' });
     /* turnstiles with locks */
     for (var i = 0; i < 3; i++) {
       var x = 23.2 + i * 2.6;
@@ -576,45 +690,67 @@
       ctx.fillStyle = open ? '#34d399' : '#c8453a';
       ctx.fillRect(lp.x - 4, lp.y - 4, 8, 8);
     }
+    /* a badge reader on a post */
+    Iso.box(ctx, { x: 26.2, y: 15.9, w: 0.3, d: 0.3, h: 1.2, color: '#5f6b78' });
+    var bp = Iso.project(26.35, 15.95, 1.2);
+    ctx.fillStyle = '#22303f'; ctx.fillRect(bp.x - 8, bp.y - 8, 16, 16);
+    ctx.fillStyle = '#4fd0c0'; ctx.fillRect(bp.x - 5, bp.y - 5, 10, 10);
   }});
 
   /* --- act 3, the retrieval ring ------------------------------------------ */
 
   add({ id: 'query', x: 18.8, y: 17.9, w: 8.0, d: 3.7, draw: function (ctx, b, t) {
-    /* a gate arch with a giant question mark */
+    /* a gate arch with a giant glowing question mark */
     Iso.box(ctx, { x: 19.6, y: 18.4, w: 0.9, d: 0.9, h: 2.8, color: C.steelDk });
     Iso.box(ctx, { x: 24.2, y: 18.4, w: 0.9, d: 0.9, h: 2.8, color: C.steelDk });
     Iso.box(ctx, { x: 19.6, y: 18.4, z: 2.8, w: 5.5, d: 0.9, h: 0.5, color: C.steel });
+    /* the question bubble hovering in the arch */
     var q = Iso.project(22.35, 19.0, 3.4);
+    var pulse = 1 + 0.05 * Math.sin(t * 3);
+    ctx.save();
+    ctx.translate(q.x, q.y); ctx.scale(pulse, pulse); ctx.translate(-q.x, -q.y);
     ctx.fillStyle = '#22303f';
-    ctx.beginPath(); ctx.arc(q.x, q.y, 11, 0, 6.2832); ctx.fill();
+    ctx.beginPath(); ctx.arc(q.x, q.y, 12, 0, 6.2832); ctx.fill();
     ctx.fillStyle = C.gold;
     ctx.font = 'bold 17px "Trebuchet MS", Verdana, sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText('?', q.x, q.y + 1);
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    glow(ctx, 22.35, 19.0, 3.6, 0.8, t, C.cyan, '#ffffff');
+    ctx.restore();
+    glow(ctx, 22.35, 19.0, 3.7, 0.9, t, C.cyan, '#ffffff');
+    /* small letters falling into the gate: user questions */
+    for (var i = 0; i < 3; i++) {
+      var k = ((t * 0.6) + i / 3) % 1;
+      var lp = Iso.project(22.35 + Math.sin(k * 5 + i) * 1.2, 19.6 - k * 0.8, 2.9 + k * 0.5);
+      ctx.fillStyle = 'rgba(255,233,168,' + (0.8 * (1 - k)).toFixed(2) + ')';
+      ctx.font = 'bold 10px "Trebuchet MS", Verdana, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('?', lp.x, lp.y);
+    }
+    ctx.textAlign = 'left';
   }});
 
   add({ id: 'rewrite', x: 27.6, y: 17.9, w: 7.2, d: 3.7, draw: function (ctx, b, t) {
     machine(ctx, 28.4, 18.4, 2.6, 2.4, 1.5, '#7fb3d4', t, 0);
-    /* one question in, three variants out */
+    /* one question in, three variants out on little tracks */
     var k = (t * 0.4) % 1;
     Iso.box(ctx, { x: 31.8 + k * 0.6, y: 18.8, z: 0.5, w: 0.5, d: 0.4, h: 0.3, color: C.gold });
-    var vp = Iso.project(33.2, 20.2, 0.6);
-    ctx.fillStyle = C.cyan;
     for (var i = 0; i < 3; i++) {
-      ctx.globalAlpha = 0.5 + 0.5 * Math.sin(t * 3 + i * 2);
-      ctx.beginPath(); ctx.arc(vp.x + i * 9 - 9, vp.y + Math.sin(t * 2 + i) * 4, 3.4, 0, 6.2832); ctx.fill();
+      var vp = Iso.project(33.2, 20.2 + (i - 1) * 0.55, 0.6);
+      ctx.fillStyle = 'rgba(34,211,238,' + (0.5 + 0.5 * Math.sin(t * 3 + i * 2)) + ')';
+      ctx.beginPath(); ctx.arc(vp.x, vp.y, 3.4, 0, 6.2832); ctx.fill();
+      /* little track lines */
+      ctx.strokeStyle = 'rgba(34,211,238,0.3)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(vp.x - 12, vp.y); ctx.lineTo(vp.x - 4, vp.y); ctx.stroke();
     }
-    ctx.globalAlpha = 1;
   }});
 
   add({ id: 'hybrid', x: 35.4, y: 17.0, w: 9.0, d: 4.6, draw: function (ctx, b, t) {
     Iso.box(ctx, { x: 35.8, y: 17.4, w: 8.0, d: 4.0, h: 0.5, color: '#5b6470' });
     /* twin engines: BM25 (left, letters) and dense (right, glow) */
-    Iso.box(ctx, { x: 36.2, y: 17.8, w: 3.0, d: 2.6, h: 1.7, color: '#b9c3cd' });
-    var lp = Iso.project(37.7, 20.4, 1.2);
+    Iso.box(ctx, { x: 36.2, y: 17.8, w: 3.0, d: 2.6, h: 1.9, color: '#b9c3cd' });
+    Iso.box(ctx, { x: 36.2, y: 17.8, z: 1.9, w: 3.0, d: 2.6, h: 0.3, color: '#8a97a5' });
+    var lp = Iso.project(37.7, 20.4, 1.3);
     ctx.fillStyle = '#22303f'; ctx.fillRect(lp.x - 20, lp.y - 14, 40, 28);
     ctx.fillStyle = '#f2c14e'; ctx.font = 'bold 11px "Trebuchet MS", Verdana, sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -623,15 +759,20 @@
       ctx.fillStyle = 'rgba(242,193,78,0.7)';
       ctx.fillRect(lp.x - 16, lp.y + i * 7 - 1, 26 - i * 4, 2.4);
     }
-    Iso.box(ctx, { x: 40.0, y: 17.8, w: 3.0, d: 2.6, h: 1.7, color: '#4d7fb5' });
+    Iso.box(ctx, { x: 40.0, y: 17.8, w: 3.0, d: 2.6, h: 1.9, color: '#4d7fb5' });
     var dp = Iso.project(41.5, 20.4, 1.3);
     ctx.fillStyle = '#16324a'; ctx.beginPath(); ctx.arc(dp.x, dp.y, 13, 0, 6.2832); ctx.fill();
-    ctx.fillStyle = 'rgba(34,211,238,0.8)';
     for (var j = 0; j < 4; j++) {
       var a = t * 2 + j * 1.7;
+      ctx.fillStyle = 'rgba(34,211,238,0.8)';
       ctx.beginPath(); ctx.arc(dp.x + Math.cos(a) * 7, dp.y + Math.sin(a) * 5, 3, 0, 6.2832); ctx.fill();
     }
+    /* connector beams between the twins */
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(lp.x + 22, lp.y - 6); ctx.lineTo(dp.x - 16, dp.y - 8); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(lp.x + 22, lp.y + 8); ctx.lineTo(dp.x - 16, dp.y + 10); ctx.stroke();
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    glow(ctx, 41.5, 20.4, 1.35, 0.9, t, 'rgba(34,211,238,0.35)', 'rgba(34,211,238,0.15)');
   }});
 
   add({ id: 'rrf', x: 31.6, y: 34.0, w: 8.6, d: 4.2, draw: function (ctx, b, t) {
@@ -648,37 +789,53 @@
       Iso.box(ctx, { x: 38.4 + c2 * 1.2, y: 35.2 - j * 0.6, z: 0.6, w: 0.45, d: 0.4, h: 0.26,
                      color: j % 2 ? C.violet : C.teal });
     }
-    /* the fusion funnel */
+    /* the fusion funnel with a glow */
     var fp = Iso.project(36.0, 36.8, 0.7);
-    ctx.fillStyle = 'rgba(242,193,78,0.5)';
+    ctx.fillStyle = 'rgba(242,193,78,0.55)';
     ctx.beginPath(); ctx.moveTo(fp.x - 16, fp.y - 10); ctx.lineTo(fp.x + 16, fp.y - 10);
     ctx.lineTo(fp.x + 5, fp.y + 6); ctx.lineTo(fp.x - 5, fp.y + 6); ctx.closePath(); ctx.fill();
-    sign(ctx, 38.0, 38.2, 0.8, 'RRF', C.gold);
+    ctx.strokeStyle = 'rgba(140,100,20,0.7)'; ctx.lineWidth = 1.4;
+    ctx.stroke();
+    /* ranked output stepping down */
+    for (var r2 = 0; r2 < 4; r2++) {
+      Iso.box(ctx, { x: 34.4 + r2 * 0.8, y: 37.6, z: 0.62, w: 0.66, d: 0.5, h: 0.34 - r2 * 0.05,
+                     color: r2 < 2 ? C.gold : '#c9d3dd' });
+    }
+    sign(ctx, 38.4, 38.2, 0.8, 'RRF', C.gold);
   }});
 
   add({ id: 'rerank', x: 23.6, y: 34.0, w: 7.6, d: 4.2, draw: function (ctx, b, t) {
     Iso.box(ctx, { x: 24.0, y: 34.4, w: 6.8, d: 3.4, h: 1.3, color: '#a8b4c0' });
-    /* a judge: cross-encoder reading question + candidate together */
-    var jp = Iso.project(26.2, 36.6, 1.4);
+    Iso.box(ctx, { x: 24.0, y: 34.4, z: 1.3, w: 6.8, d: 3.4, h: 0.35, color: '#8a97a5' });
+    /* a judge: cross-encoder head with a thought bubble */
+    var jp = Iso.project(26.2, 36.6, 1.45);
     ctx.fillStyle = '#22303f'; ctx.beginPath(); ctx.arc(jp.x, jp.y, 10, 0, 6.2832); ctx.fill();
     ctx.fillStyle = '#ffe9a8';
     ctx.font = 'bold 12px "Trebuchet MS", Verdana, sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('⚖', jp.x, jp.y);
+    ctx.fillText('\u2696', jp.x, jp.y);
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     /* candidates stacking into a top-k podium */
     for (var i = 0; i < 3; i++) {
       var hgt = 0.3 + (2 - i) * 0.22;
       Iso.box(ctx, { x: 28.6 + i * 0.9, y: 35.4, z: 1.3, w: 0.7, d: 0.6, h: hgt,
                      color: i === 0 ? C.gold : (i === 1 ? '#c9d3dd' : '#a8763f') });
+      /* scores floating above */
+      var sc = Iso.project(29.0 + i * 0.9, 35.5, 1.3 + hgt + 0.3);
+      ctx.fillStyle = i === 0 ? C.gold : 'rgba(242,193,78,0.55)';
+      ctx.font = 'bold 9px "Trebuchet MS", Verdana, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('' + (98 - i * 12), sc.x, sc.y);
     }
+    ctx.textAlign = 'left';
     /* the question card held up beside the judge */
     sheet(ctx, 29.8, 33.9, 0, 0.9, 1.1, C.paper);
   }});
 
   add({ id: 'rights', x: 15.6, y: 34.0, w: 7.6, d: 4.2, draw: function (ctx, b, t) {
     Iso.box(ctx, { x: 16.0, y: 34.4, w: 6.8, d: 3.4, h: 1.6, color: '#eef4f9' });
-    /* a big padlock over the doorway */
+    Iso.box(ctx, { x: 16.0, y: 34.4, z: 1.6, w: 6.8, d: 3.4, h: 0.3, color: '#c6d3de' });
+    /* a big golden padlock over the doorway, bobbing */
     var k = Math.abs(Math.sin(t * 1.4));
     var lp = Iso.project(19.4, 36.4, 1.7 + k * 0.25);
     ctx.fillStyle = C.gold;
@@ -691,6 +848,11 @@
     var bp = Iso.project(16.8, 36.0, 1.2);
     ctx.fillStyle = '#22303f'; ctx.fillRect(bp.x - 8, bp.y - 8, 16, 16);
     ctx.fillStyle = '#4fd0c0'; ctx.fillRect(bp.x - 5, bp.y - 5, 10, 10);
+    /* checkmark row on the roof */
+    for (var i = 0; i < 4; i++) {
+      ctx.fillStyle = (Math.sin(t * 2 + i) > 0) ? '#34d399' : '#1f5c4a';
+      faceRect(ctx, 37.8, 16.6 + i * 1.5, 1.65, 17.4 + i * 1.5, 1.8);
+    }
   }});
 
   /* --- the loop counter, the arch the cart drives under ------------------- */
@@ -700,6 +862,8 @@
     Iso.gable(ctx, { x: 7.0, y: 22.4, z: 2.0, w: 3.4, d: 3.0, h: 1.1, color: C.gold });
     /* the pass board, showing which search pass the query is on */
     var p = Iso.project(8.7, 25.4, 2.2);
+    ctx.fillStyle = 'rgba(20,16,10,0.45)';
+    ctx.fillRect(p.x - 33, p.y - 25, 68, 26);
     ctx.fillStyle = '#2a1e12';
     ctx.fillRect(p.x - 34, p.y - 26, 68, 26);
     ctx.strokeStyle = C.gold; ctx.lineWidth = 2;
@@ -709,12 +873,21 @@
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText('PASSE ' + ((W && W.lap) || 1), p.x, p.y - 13);
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    /* a rotating arrow above the arch */
+    var ap = Iso.project(8.7, 23.9, 3.4);
+    var ang = t * 1.2;
+    ctx.strokeStyle = C.gold; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(ap.x + Math.cos(ang) * 8, ap.y + Math.sin(ang) * 4);
+    ctx.lineTo(ap.x + Math.cos(ang + 2.6) * 8, ap.y + Math.sin(ang + 2.6) * 4);
+    ctx.stroke();
+    ctx.lineCap = 'butt';
   }});
 
   /* --- act 4: generation -------------------------------------------------- */
 
   add({ id: 'context', x: 17.6, y: 40.2, w: 8.6, d: 4.4, draw: function (ctx, b, t) {
-    hall(ctx, 18.0, 40.6, 7.8, 3.6, 1.8, '#e8eef4', '#4d7fb5');
+    hall(ctx, 18.0, 40.6, 7.8, 3.6, 1.8, '#e8eef4', '#4d7fb5', { windows: 5, winT: t });
     /* chunks sliding together into a prompt frame */
     var k = (t * 0.35) % 1;
     var cols = ['#3f7fd4', '#9a5fd0', '#c9793f', '#3fb5a0'];
@@ -722,7 +895,7 @@
       var ck = ((k + i * 0.2) % 1);
       Iso.box(ctx, { x: 18.8 + ck * 5.4, y: 42.2, z: 0.4, w: 0.55, d: 0.5, h: 0.32, color: cols[i] });
     }
-    /* the prompt frame at the end of the line */
+    /* the prompt frame at the end of the line, glowing */
     var pp = Iso.project(25.0, 41.6, 1.2);
     ctx.fillStyle = '#16324a'; ctx.fillRect(pp.x - 22, pp.y - 26, 44, 30);
     ctx.strokeStyle = C.cyan; ctx.lineWidth = 1.6; ctx.strokeRect(pp.x - 22, pp.y - 26, 44, 30);
@@ -730,12 +903,19 @@
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText('PROMPT', pp.x, pp.y - 16);
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    glow(ctx, 25.0, 41.6, 1.25, 0.8, t, 'rgba(34,211,238,0.3)', 'rgba(34,211,238,0.12)');
   }});
 
   add({ id: 'llm', x: 26.6, y: 40.2, w: 8.6, d: 4.4, draw: function (ctx, b, t) {
     /* the reactor: a glowing core with a chimney of "thought" */
     Iso.box(ctx, { x: 27.2, y: 40.6, w: 7.4, d: 3.6, h: 0.8, color: C.dark });
     Iso.cylinder(ctx, { x: 31.0, y: 42.4, r: 1.5, h: 2.4, z: 0.8, color: '#4d7fb5' });
+    /* cooling fins around the core */
+    for (var f = 0; f < 4; f++) {
+      var fa = f * 1.57 + 0.4;
+      Iso.box(ctx, { x: 31.0 + Math.cos(fa) * 1.62 - 0.14, y: 42.4 + Math.sin(fa) * 1.5 - 0.14,
+                     z: 0.8, w: 0.28, d: 0.28, h: 2.8, color: '#8a97a5', edge: false });
+    }
     glow(ctx, 31.0, 42.4, 3.25, 1.35, t, '#7fd4e8', '#ffffff');
     smoke(ctx, 31.0, 42.4, 3.4, t);
     /* the answer sheet sliding out */
@@ -745,7 +925,7 @@
   }});
 
   add({ id: 'cite', x: 35.6, y: 40.2, w: 8.6, d: 4.4, draw: function (ctx, b, t) {
-    hall(ctx, 36.0, 40.6, 7.8, 3.6, 1.8, '#f0ead8', '#a8563f');
+    hall(ctx, 36.0, 40.6, 7.8, 3.6, 1.8, '#f0ead8', '#a8563f', { windows: 4, winT: t });
     /* a giant quotation mark on the wall */
     var qp = Iso.project(39.9, 43.8, 1.6);
     ctx.fillStyle = '#a8563f';
@@ -761,10 +941,15 @@
     ctx.fillText('[1]', sp.x - 18, sp.y - 16);
     ctx.fillText('[2]', sp.x + 4, sp.y - 2);
     ctx.fillText('[3]', sp.x - 12, sp.y + 12);
+    /* a little link chain to the source shelf */
+    Iso.box(ctx, { x: 41.2, y: 43.4, w: 3.4, d: 0.7, h: 0.3, color: '#8a7a5a' });
+    for (var i = 0; i < 4; i++) {
+      Iso.box(ctx, { x: 41.4 + i * 0.8, y: 43.5, z: 0.3, w: 0.55, d: 0.5, h: 0.2, color: C.paper });
+    }
   }});
 
   add({ id: 'guard', x: 44.6, y: 40.2, w: 9.0, d: 4.4, draw: function (ctx, b, t) {
-    hall(ctx, 45.0, 40.6, 8.0, 3.6, 1.9, '#e8eef4', C.blue);
+    hall(ctx, 45.0, 40.6, 8.0, 3.6, 1.9, '#e8eef4', C.blue, { sign: 'RGPD' });
     /* a shield over the gate */
     var k = 0.5 + 0.5 * Math.sin(t * 2);
     var sp = Iso.project(49.0, 43.9, 2.0);
@@ -780,6 +965,8 @@
     for (var i = 0; i < 2; i++) {
       var pp = Iso.project(46.0 + i * 4.6, 41.4, 1.6);
       ctx.fillStyle = '#16324a'; ctx.fillRect(pp.x - 16, pp.y - 12, 32, 24);
+      ctx.strokeStyle = '#4fd0c0'; ctx.lineWidth = 1;
+      ctx.strokeRect(pp.x - 16, pp.y - 12, 32, 24);
       ctx.fillStyle = (Math.sin(t * 3 + i * 2) > 0) ? '#c8453a' : '#2b3a48';
       ctx.fillRect(pp.x - 12, pp.y - 8, 24, 16);
     }
@@ -802,8 +989,11 @@
         ctx.fillRect(p.x - 13 + off * 0.3, p.y - 17 + k2 * 6, 14, 3);
       }
     }
-    /* the lorry waiting */
+    /* the lorry waiting, headlights on */
     truck(ctx, 54.1, 43.3, C.red);
+    var hl = Iso.project(57.6, 43.4, 1.2);
+    ctx.fillStyle = 'rgba(255,240,180,0.5)';
+    ctx.beginPath(); ctx.arc(hl.x, hl.y, 4, 0, 6.2832); ctx.fill();
   }});
 
   add({ id: 'eval', x: 50.6, y: 18.6, w: 9.6, d: 6.6, draw: function (ctx, b, t, W) {
@@ -903,9 +1093,11 @@
 
   /* ---- scenery ----------------------------------------------------------- */
 
+  /* Layered trees: a trunk, three foliage lobes and a soft shadow, so they
+     read as rounded volumes rather than flat blobs. */
   function tree(ctx, x, y, s) {
     s = s || 1;
-    Iso.shadow(ctx, x, y, 0.7 * s);
+    Iso.shadow(ctx, x, y, 0.9 * s, 0.25);
     Iso.cylinder(ctx, { x: x, y: y, r: 0.16 * s, h: 1.0 * s, color: '#6b4a2b', edge: false });
     var p = Iso.project(x, y, 1.0 * s);
     ctx.fillStyle = '#2f7a34';
@@ -917,7 +1109,7 @@
   }
 
   function bush(ctx, x, y) {
-    Iso.shadow(ctx, x, y, 0.45);
+    Iso.shadow(ctx, x, y, 0.45, 0.22);
     var p = Iso.project(x, y, 0);
     ctx.fillStyle = '#3d8b3d';
     ctx.beginPath(); ctx.ellipse(p.x, p.y - 7, 13, 9, 0, 0, 6.2832); ctx.fill();
@@ -928,6 +1120,12 @@
   function lamp(ctx, x, y) {
     Iso.cylinder(ctx, { x: x, y: y, r: 0.1, h: 2.4, color: '#4a5568', edge: false });
     var p = Iso.project(x, y, 2.4);
+    /* halo */
+    var g = ctx.createRadialGradient(p.x, p.y - 3, 1, p.x, p.y - 3, 16);
+    g.addColorStop(0, 'rgba(255,233,168,0.55)');
+    g.addColorStop(1, 'rgba(255,233,168,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(p.x, p.y - 3, 16, 0, 6.2832); ctx.fill();
     ctx.fillStyle = '#ffe9a8';
     ctx.beginPath(); ctx.arc(p.x, p.y - 3, 5, 0, 6.2832); ctx.fill();
   }

@@ -1,6 +1,8 @@
 /* render.js: paints the park.
    Ground first as flat fills, then every solid through a painter's algorithm
-   keyed on the front corner of its footprint. */
+   keyed on the front corner of its footprint. Text layout guarantees that no
+   two labels ever overlap: the cart tag is the top priority, every stop sign
+   is placed around it (or dropped) so the ride stays perfectly legible. */
 (function (global) {
   'use strict';
 
@@ -108,10 +110,13 @@
     var y0 = Math.max(B.y0, Math.floor((lo.y - 6) / 4) * 4);
     var y1 = Math.min(B.y1, hi.y + 6);
 
-    ctx.fillStyle = C.grassAlt;
+    /* checker with a subtle per-cell tint variation so the lawn reads as
+       mown stripes rather than flat plastic */
     for (var x = x0; x < x1; x += 4) {
       for (var y = y0; y < y1; y += 4) {
         if ((Math.round(x / 4 + y / 4) & 1)) continue;
+        var tint = Iso.hash2(x, y, 31) * 0.05 - 0.025;
+        ctx.fillStyle = Iso.mix(C.grassAlt, C.grass, 0.5 + tint * 10);
         Iso.quad(ctx, x, y, 4, 4, 0);
       }
     }
@@ -123,6 +128,11 @@
       Iso.quad(ctx, L.x - 0.18, L.y - 0.18, L.w + 0.36, L.d + 0.36, 0.001);
       ctx.fillStyle = L.c;
       Iso.quad(ctx, L.x, L.y, L.w, L.d, 0.002);
+      /* a fine edge line so lots read as paved slabs */
+      ctx.strokeStyle = 'rgba(74,53,32,0.22)';
+      ctx.lineWidth = 1;
+      Iso.stroke(ctx, [Iso.project(L.x, L.y, 0.003), Iso.project(L.x + L.w, L.y, 0.003),
+                       Iso.project(L.x + L.w, L.y + L.d, 0.003), Iso.project(L.x, L.y + L.d, 0.003)], true);
     }
 
     /* the roads the cart drives */
@@ -131,16 +141,22 @@
       ctx.fillStyle = C.pathEdge;
       for (var s = 0; s < r.segs.length; s++) {
         var g = r.segs[s];
-        Iso.ribbon(ctx, g.a.x, g.a.y, g.b.x, g.b.y, 2.5, 0.004);
+        Iso.ribbon(ctx, g.a.x, g.a.y, g.b.x, g.b.y, 2.6, 0.004);
       }
       ctx.fillStyle = C.path;
       for (var s2 = 0; s2 < r.segs.length; s2++) {
         var g2 = r.segs[s2];
-        Iso.ribbon(ctx, g2.a.x, g2.a.y, g2.b.x, g2.b.y, 2.1, 0.005);
+        Iso.ribbon(ctx, g2.a.x, g2.a.y, g2.b.x, g2.b.y, 2.2, 0.005);
+      }
+      /* dashed centre line, like a park tramway */
+      ctx.fillStyle = 'rgba(120,96,60,0.35)';
+      for (var d = 0; d < r.total; d += 2.6) {
+        var p = r.at(d);
+        Iso.ribbon(ctx, p.x, p.y, p.x + p.dx * 0.9, p.y + p.dy * 0.9, 0.1, 0.006);
       }
       /* round off the corners so the joins do not show as notches */
       ctx.fillStyle = C.path;
-      for (var p = 1; p < r.pts.length - 1; p++) Iso.disc(ctx, r.pts[p].x, r.pts[p].y, 0.006, 1.05);
+      for (var p2 = 1; p2 < r.pts.length - 1; p2++) Iso.disc(ctx, r.pts[p2].x, r.pts[p2].y, 0.006, 1.1);
     });
   }
 
@@ -398,36 +414,144 @@
     }
   }
 
-  /* A name tag riding above the cart. Drawn in screen space with the other
-     signage so it stays upright and legible at any zoom. */
-  function drawCartTag(ctx, cam, p, s) {
+  /* ---- text layout: NO overlapping labels, ever --------------------------- */
+
+  var FONT_LABEL = 'bold 12px "Trebuchet MS", Verdana, sans-serif';
+  var FONT_TAG = 'bold 12.5px "Trebuchet MS", Verdana, sans-serif';
+  var TAG_PAD = 10;
+
+  function rectsOverlap(a, b) {
+    return a.x < b.x + b.w && a.x + a.w > b.x &&
+           a.y < b.y + b.h && a.y + a.h > b.y;
+  }
+
+  /* Compute the screen rectangle the cart tag will occupy. Null when it is
+     not drawn (too zoomed out, no cargo label). */
+  function cartTagRect(ctx, cam, p, s) {
     var text = Park.cargoLabels[s.cargo];
-    if (!text || cam.scale < 0.35) return;
+    if (!text || cam.scale < 0.35) return null;
     if (Park.loopCargo[s.cargo] && s.lap > 0) text += ' · passe ' + s.lap;
 
     var w = Iso.project(p.x, p.y, p.z + 1.9);
     var sx = w.x * cam.scale + cam.ox;
     var sy = w.y * cam.scale + cam.oy;
-
-    ctx.save();
-    ctx.font = 'bold 12.5px "Trebuchet MS", Verdana, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
+    ctx.font = FONT_TAG;
     var tw = ctx.measureText(text).width + 20;
 
+    return {
+      x: sx - tw / 2, y: sy - 11, w: tw, h: 22,
+      text: text, sx: sx, sy: sy, tw: tw
+    };
+  }
+
+  /* A name tag riding above the cart. Drawn last, so nothing ever covers it. */
+  function drawCartTag(ctx, cam, p, s, tag) {
+    if (!tag) return;
+    var sx = tag.sx, sy = tag.sy, tw = tag.tw;
+
+    ctx.save();
+    ctx.font = FONT_TAG;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    /* plate with a soft drop shadow, gold border and a pointer down */
+    ctx.fillStyle = 'rgba(20,16,10,0.4)';
+    roundRect(ctx, sx - tw / 2 + 1, sy - 10, tw, 22, 5);
+    ctx.fill();
     ctx.fillStyle = '#22303f';
+    roundRect(ctx, sx - tw / 2, sy - 11, tw, 22, 5);
+    ctx.fill();
     ctx.strokeStyle = '#f2c14e';
     ctx.lineWidth = 2;
     roundRect(ctx, sx - tw / 2, sy - 11, tw, 22, 5);
-    ctx.fill(); ctx.stroke();
-    /* little pointer down toward the cart */
+    ctx.stroke();
+
     ctx.beginPath();
     ctx.moveTo(sx - 5, sy + 11); ctx.lineTo(sx + 5, sy + 11); ctx.lineTo(sx, sy + 17);
     ctx.closePath(); ctx.fillStyle = '#22303f'; ctx.fill();
 
     ctx.fillStyle = '#ffe9a8';
-    ctx.fillText(text, sx, sy + 1);
+    ctx.fillText(tag.text, sx, sy + 1);
     ctx.restore();
+
+    if (Renderer._lastLayout) Renderer._lastLayout.tag = { x: tag.x, y: tag.y, w: tag.w, h: tag.h };
+  }
+
+  /* Stop signs, greedily placed so nothing overlaps: the cart tag is the
+     immovable object, the active stop is placed first, every other sign tries
+     its home position then a few nudges, and gives up rather than collide. */
+  function drawLabels(ctx, cam, activeId, tag) {
+    if (cam.scale < 0.45) return;
+    ctx.save();
+    ctx.font = FONT_LABEL;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    var placed = [];
+
+    /* the cart tag is the top priority obstacle */
+    var tagBox = tag ? { x: tag.x - TAG_PAD, y: tag.y - TAG_PAD,
+                         w: tag.w + TAG_PAD * 2, h: tag.h + TAG_PAD * 2 } : null;
+    function collides(r) {
+      if (tagBox && rectsOverlap(r, tagBox)) return true;
+      for (var i = 0; i < placed.length; i++) {
+        if (rectsOverlap(r, placed[i])) return true;
+      }
+      return false;
+    }
+
+    var order = Park.stops.map(function (s, i) { return { s: s, i: i }; });
+    order.sort(function (a, b) {
+      return (b.s.id === activeId ? 1 : 0) - (a.s.id === activeId ? 1 : 0);
+    });
+
+    for (var oi = 0; oi < order.length; oi++) {
+      var st = order[oi].s, i = order[oi].i;
+      var w = Iso.project(st.x, st.y, 0);
+      var sx = w.x * cam.scale + cam.ox;
+      var sy = w.y * cam.scale + cam.oy - 46 * Math.min(1, cam.scale);
+      if (sx < -120 || sy < -40 || sx > ctx.canvas.width / cam.dpr + 120 ||
+          sy > ctx.canvas.height / cam.dpr + 40) continue;
+
+      var on = st.id === activeId;
+      var text = (i + 1) + '. ' + st.name;
+      var tw = ctx.measureText(text).width + 16;
+
+      /* try the home spot, then a few nudges up and down, never overlapping */
+      var rect = { x: sx - tw / 2, y: sy - 10, w: tw, h: 20 };
+      var dy = 0, placedRect = null;
+      var nudges = [0, -26, 26, -52, 52, -78, 78];
+      for (var n = 0; n < nudges.length; n++) {
+        var tryR = { x: rect.x, y: rect.y + nudges[n], w: rect.w, h: rect.h };
+        if (!collides(tryR)) { placedRect = tryR; dy = nudges[n]; break; }
+      }
+      if (!placedRect) continue;           // give up rather than overlap
+
+      placed.push(placedRect);
+
+      var py = sy + dy;
+      ctx.fillStyle = on ? '#f2c14e' : 'rgba(239,224,189,0.94)';
+      ctx.strokeStyle = '#4a3520';
+      ctx.lineWidth = 2;
+      roundRect(ctx, sx - tw / 2, py - 10, tw, 20, 4);
+      ctx.fill();
+      ctx.stroke();
+      /* post down to the ground, drawn short so a nudged sign still reads
+         as belonging to its stop */
+      ctx.strokeStyle = 'rgba(74,53,32,0.75)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(sx, py + 10);
+      ctx.lineTo(sx, py + 10 + 14 * Math.min(1, cam.scale));
+      ctx.stroke();
+
+      ctx.fillStyle = '#2f2113';
+      ctx.fillText(text, sx, py + 1);
+    }
+    ctx.restore();
+    /* debug: expose the laid-out text boxes so an automated test can prove
+       that nothing ever overlaps */
+    Renderer._lastLayout = { signs: placed.slice() };
   }
 
   /* ---- frame ------------------------------------------------------------- */
@@ -496,66 +620,11 @@
 
     ctx.restore();
 
-    if (showLabels) drawLabels(ctx, cam, activeId);
-    drawCartTag(ctx, cam, cp, s);
-  }
-
-  /* Signs are drawn in screen space so they stay upright and readable at any
-     zoom, the way park signage reads on a map. */
-  function drawLabels(ctx, cam, activeId) {
-    if (cam.scale < 0.45) return;
-    ctx.save();
-    ctx.font = 'bold 12px "Trebuchet MS", Verdana, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-
-    /* Signs are placed greedily and any that would collide with one already
-       placed is dropped, so a zoomed-out park does not turn into a wall of
-       overlapping plates. The active stop is placed first so it always wins. */
-    var order = Park.stops.map(function (s, i) { return { s: s, i: i }; });
-    order.sort(function (a, b) {
-      return (b.s.id === activeId ? 1 : 0) - (a.s.id === activeId ? 1 : 0);
-    });
-    var placed = [];
-
-    for (var oi = 0; oi < order.length; oi++) {
-      var st = order[oi].s, i = order[oi].i;
-      var w = Iso.project(st.x, st.y, 0);
-      var sx = w.x * cam.scale + cam.ox;
-      var sy = w.y * cam.scale + cam.oy - 46 * Math.min(1, cam.scale);
-      if (sx < -120 || sy < -40 || sx > ctx.canvas.width / cam.dpr + 120 ||
-          sy > ctx.canvas.height / cam.dpr + 40) continue;
-
-      var on = st.id === activeId;
-      var text = (i + 1) + '. ' + st.name;
-      var tw = ctx.measureText(text).width + 16;
-
-      var clash = false;
-      for (var pj = 0; pj < placed.length; pj++) {
-        var q = placed[pj];
-        if (Math.abs(q.x - sx) < (q.w + tw) / 2 + 6 && Math.abs(q.y - sy) < 24) { clash = true; break; }
-      }
-      if (clash) continue;
-      placed.push({ x: sx, y: sy, w: tw });
-
-      ctx.fillStyle = on ? '#f2c14e' : 'rgba(239,224,189,0.94)';
-      ctx.strokeStyle = '#4a3520';
-      ctx.lineWidth = 2;
-      roundRect(ctx, sx - tw / 2, sy - 10, tw, 20, 4);
-      ctx.fill();
-      ctx.stroke();
-      /* post down to the ground */
-      ctx.strokeStyle = 'rgba(74,53,32,0.75)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(sx, sy + 10);
-      ctx.lineTo(sx, sy + 10 + 14 * Math.min(1, cam.scale));
-      ctx.stroke();
-
-      ctx.fillStyle = '#2f2113';
-      ctx.fillText(text, sx, sy + 1);
-    }
-    ctx.restore();
+    /* text last, on top of everything, with the cart tag as the immovable
+       reference so the two never overlap no matter where the cart goes */
+    var tag = cartTagRect(ctx, cam, cp, s);
+    if (showLabels) drawLabels(ctx, cam, activeId, tag);
+    drawCartTag(ctx, cam, cp, s, tag);
   }
 
   function roundRect(ctx, x, y, w, h, r) {
