@@ -696,6 +696,7 @@ a.card:hover { transform: translateY(-2px); box-shadow: inset -1px -1px #0a0a0a,
 /* ---------- bande verte en bas : petit bonhomme pixel qui marche ---------- */
 
 .pixel-strip {
+  position: relative;
   margin: 18px -18px -60px;   /* pleine largeur au-delà du padding du portail */
   padding: 0;
   background: linear-gradient(180deg, #7ec850 0%, #5aa832 55%, #3f7d24 100%);
@@ -707,6 +708,17 @@ a.card:hover { transform: translateY(-2px); box-shadow: inset -1px -1px #0a0a0a,
   display: block; width: 100%; height: 64px;
   image-rendering: pixelated;
 }
+.strip-credit {
+  position: absolute; left: 12px; bottom: 8px;
+  margin: 0; padding: 2px 8px;
+  font-size: 11px; color: #fff;
+  background: rgba(20, 50, 10, 0.55);
+  border: 1px solid rgba(255,255,255,0.35);
+  font-family: "Pixelated MS Sans Serif", Tahoma, Arial, sans-serif;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.6);
+  pointer-events: none;
+}
+.strip-credit b { color: #d8f2c0; }
 
 /* ---------- responsive ---------- */
 
