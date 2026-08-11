@@ -569,6 +569,29 @@ a.card:hover { transform: translateY(-2px); box-shadow: inset -1px -1px #0a0a0a,
 }
 .controls-hint b { color: #6a5c00; }
 
+/* ---------- crédit d'inspiration, bas de la page d'accueil ---------- */
+
+.portal-credit {
+  margin-top: 28px; padding: 14px 8px 6px;
+  border-top: 1px solid #b7b094;
+  font-size: 12px; color: #4a4a4a;
+  text-align: center;
+}
+.portal-credit a { color: #003d74; font-weight: bold; }
+.portal-credit a:hover { color: #0050ee; }
+.portal-credit .heart {
+  display: inline-block; color: #c0202f;
+  font-size: 13px; margin-left: 4px;
+  animation: heart-beat 1.6s ease-in-out infinite;
+}
+@keyframes heart-beat {
+  0%, 100% { transform: scale(1); }
+  12% { transform: scale(1.28); }
+  24% { transform: scale(1); }
+  36% { transform: scale(1.18); }
+  48% { transform: scale(1); }
+}
+
 /* ---------- outillage open source + sources, dans le guide ---------- */
 
 .tool-list, .ref-list {
