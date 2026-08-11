@@ -130,9 +130,13 @@ body {
   position: relative;
   box-shadow: inset 1px 1px 0 #c0c0c0;
 }
-.logo::after {
-  content: ""; position: absolute; inset: 4px;
-  background: linear-gradient(135deg, #3fb5a0, #2a8a7a); border-radius: 2px;
+/* le carré vert a été remplacé par le petit bonhomme pixel (pixel-guy.js) */
+.logo::after { display: none; }
+.guy-canvas {
+  display: block; position: absolute;
+  image-rendering: pixelated;
+  pointer-events: none;
+  z-index: 1;
 }
 .brand-text { min-width: 0; }
 .brand-text h1 {
