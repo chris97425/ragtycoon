@@ -125,12 +125,13 @@ body {
 .brand { display: flex; align-items: center; gap: 8px; margin-right: auto; min-width: 0; }
 .logo {
   width: 24px; height: 24px; flex: none;
-  background: #fff;
-  border: 1px solid #003d74; border-radius: 3px;
+  background: transparent;
+  border: none;
   position: relative;
-  box-shadow: inset 1px 1px 0 #c0c0c0;
+  box-shadow: none;
 }
-/* le carré vert a été remplacé par le petit bonhomme pixel (pixel-guy.js) */
+/* le carré blanc/vert d'origine a été remplacé par le petit bonhomme pixel
+   (pixel-guy.js) : le conteneur ne laisse plus voir aucun cadre */
 .logo::after { display: none; }
 .guy-canvas {
   display: block; position: absolute;
@@ -489,9 +490,8 @@ input[type="checkbox"].xp-check { position: fixed; opacity: 0; margin: 0; }
 }
 .portal-head .logo {
   width: 46px; height: 46px; margin: 0 auto 8px;
-  border-radius: 6px; border-width: 2px;
 }
-.portal-head .logo::after { inset: 10px; border-radius: 4px; }
+.portal-head .logo::after { display: none; }
 .portal-head h1 {
   margin: 0; font-size: 30px; color: #fff;
   text-shadow: 2px 2px 0 rgba(0,0,0,0.6); letter-spacing: 0.5px;
