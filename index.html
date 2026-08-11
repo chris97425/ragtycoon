@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>La Machine à Comprendre — Apprendre en fabriquant</title>
 <meta name="description" content="RAGTycoon : des sujets complexes appris par la simulation. Choisis un projet, puis un chapitre : le chariot se transforme à chaque étape, tu manipules, tu retiens." />
-<link rel="stylesheet" href="css/xp.css?v=11" />
-<link rel="stylesheet" href="css/styles.css?v=11" />
+<link rel="stylesheet" href="css/xp.css?v=12" />
+<link rel="stylesheet" href="css/styles.css?v=12" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%232f3945'/%3E%3Crect x='9' y='9' width='14' height='14' rx='2' fill='%233fb5a0'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -14,7 +14,7 @@
 
   <div class="portal-head">
     <div class="avatar-frame">
-      <img src="assets/avatar.jpg?v=11" alt="Avatar pixel art" class="avatar-img" />
+      <img src="assets/avatar.jpg?v=12" alt="Avatar pixel art" class="avatar-img" />
     </div>
     <h1>La Machine <span>à Comprendre</span></h1>
     <p>Apprendre en fabriquant : des sujets complexes, expliqués par la simulation.</p>
@@ -73,6 +73,118 @@
     Inspired by the work of <a href="https://laurentiugabriel.github.io/" target="_blank" rel="noopener">« How I use LLMs to learn »</a> (Laurentiu Raducu) <span class="heart" aria-hidden="true">❤</span>
   </footer>
 
+  <div class="pixel-strip">
+    <canvas id="pixel-walk" height="64"></canvas>
+  </div>
+
 </div>
+<script>
+/* Petit bonhomme pixel qui traverse la bande verte de droite à gauche.
+   Deux frames de marche, herbe et fleurs en arrière-plan, le tout en
+   pixels dessinés sur canvas (aucune image, aucun réseau). */
+(function () {
+  'use strict';
+  var cv = document.getElementById('pixel-walk');
+  if (!cv) return;
+  var ctx = cv.getContext('2d');
+  var PX = 4;                       /* taille d'un pixel à l'écran */
+  var W = 0, H = 64;
+
+  function resize() {
+    var parent = cv.parentElement;
+    W = parent.clientWidth;
+    cv.width = W;
+    cv.height = H;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  /* --- sprite du bonhomme : 12 x 14 pixels, 2 frames de marche --- */
+  var WALK = [
+    /* frame 0 : pas écarté */
+    [ '..CCCCCC..', '.CCCCCCCC.', '.CFFFFFFC.', '.CFBFFBFC.', '.CFFFFFFC.',
+      '..FFFFFF..', '..HHHHHH..', '.HHHHHHHH.', '..HHHHHH..', '..HHHHHH..',
+      '..PP..PP..', '.PP....PP.', '.PP....PP.', '.SS....SS.' ],
+    /* frame 1 : pas serré */
+    [ '..CCCCCC..', '.CCCCCCCC.', '.CFFFFFFC.', '.CFBFFBFC.', '.CFFFFFFC.',
+      '..FFFFFF..', '..HHHHHH..', '.HHHHHHHH.', '..HHHHHH..', '..HHHHHH..',
+      '...PPPP...', '..PP..PP..', '..PP..PP..', '..SS..SS..' ]
+  ];
+  var PAL = { C: '#2f2418', F: '#eab88a', B: '#1a1a1a', H: '#6d1f2c', P: '#2b4a6f', S: '#222222' };
+  var GW = 12 * PX, GH = 14 * PX;
+
+  function drawGuy(gx, gy, frame) {
+    var rows = WALK[frame];
+    for (var y = 0; y < rows.length; y++) {
+      var row = rows[y];
+      for (var x = 0; x < row.length; x++) {
+        var c = PAL[row[x]];
+        if (!c) continue;
+        ctx.fillStyle = c;
+        ctx.fillRect(gx + x * PX, gy + y * PX, PX, PX);
+      }
+    }
+  }
+
+  /* --- décor : herbe et fleurs pixellisées --- */
+  var tufts = [], flowers = [];
+  function scatter() {
+    tufts = []; flowers = [];
+    var n = Math.max(8, Math.floor(W / 90));
+    for (var i = 0; i < n; i++) {
+      tufts.push({ x: Math.floor(Math.random() * (W - 20)) + 4, h: 4 + Math.floor(Math.random() * 6), s: (Math.random() < 0.5 ? 1 : -1) });
+      if (Math.random() < 0.45) {
+        flowers.push({ x: Math.floor(Math.random() * (W - 16)) + 4, c: ['#ffd23e', '#ff6b9d', '#ffffff'][Math.floor(Math.random() * 3)] });
+      }
+    }
+  }
+  scatter();
+  window.addEventListener('resize', scatter);
+
+  /* --- boucle : le bonhomme marche de droite à gauche --- */
+  var t = 0;
+  var guyX = W + 40;
+  var speed = 1.4;   /* px par frame */
+
+  function frame() {
+    t++;
+    ctx.clearRect(0, 0, W, H);
+
+    /* herbe */
+    for (var i = 0; i < tufts.length; i++) {
+      var tuf = tufts[i];
+      ctx.fillStyle = '#2e5c18';
+      for (var k = 0; k < 3; k++) {
+        ctx.fillRect(tuf.x + k * 4, H - 8 - tuf.h + (k === 1 ? 3 : 0), 2, tuf.h - (k === 1 ? 3 : 0));
+      }
+      ctx.fillStyle = '#3f7d24';
+      ctx.fillRect(tuf.x + 2, H - 6 - tuf.h + 2, 2, tuf.h - 2);
+    }
+    /* fleurs */
+    for (var f = 0; f < flowers.length; f++) {
+      var fl = flowers[f];
+      ctx.fillStyle = '#2e5c18';
+      ctx.fillRect(fl.x + 3, H - 8, 2, 6);
+      ctx.fillStyle = fl.c;
+      ctx.fillRect(fl.x + 1, H - 12, 3, 3);
+      ctx.fillRect(fl.x + 4, H - 13, 3, 3);
+      ctx.fillRect(fl.x + 1, H - 16, 3, 3);
+      ctx.fillRect(fl.x - 1, H - 15, 3, 3);
+      ctx.fillStyle = '#f2b21a';
+      ctx.fillRect(fl.x + 2, H - 14, 3, 3);
+    }
+
+    /* bonhomme */
+    guyX -= speed;
+    if (guyX < -GW - 30) { guyX = W + 30; scatter(); }
+    var step = Math.floor(t / 7) % 2;
+    var bob = (step === 0 ? 0 : -2);   /* petit rebond de marche */
+    drawGuy(Math.round(guyX), H - GH + bob, step);
+
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
 </body>
 </html>

@@ -693,6 +693,21 @@ a.card:hover { transform: translateY(-2px); box-shadow: inset -1px -1px #0a0a0a,
   .trail { width: 268px; bottom: calc(var(--dock-h, 96px) + 8px + 180px); }
 }
 
+/* ---------- bande verte en bas : petit bonhomme pixel qui marche ---------- */
+
+.pixel-strip {
+  margin: 18px -18px -60px;   /* pleine largeur au-delà du padding du portail */
+  padding: 0;
+  background: linear-gradient(180deg, #7ec850 0%, #5aa832 55%, #3f7d24 100%);
+  border-top: 4px solid #2e5c18;
+  box-shadow: inset 0 3px 0 rgba(255,255,255,0.35);
+  overflow: hidden;
+}
+.pixel-strip canvas {
+  display: block; width: 100%; height: 64px;
+  image-rendering: pixelated;
+}
+
 /* ---------- responsive ---------- */
 
 @media (max-width: 900px) {
