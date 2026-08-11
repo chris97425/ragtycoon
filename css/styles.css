@@ -471,6 +471,18 @@ input[type="checkbox"].xp-check { position: fixed; opacity: 0; margin: 0; }
 .portal-wrap { max-width: 980px; margin: 0 auto; padding: 22px 18px 60px; }
 
 .portal-head { text-align: center; margin-bottom: 22px; }
+.avatar-frame {
+  display: inline-block; padding: 4px; margin: 0 auto 12px;
+  background: var(--xp-panel);
+  border: 1px solid #003d74;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #dfdfdf,
+              inset -2px -2px #808080, inset 2px 2px #fff,
+              4px 4px 0 var(--shadow);
+}
+.avatar-img {
+  display: block; width: 132px; height: 132px;
+  image-rendering: pixelated;
+}
 .portal-head .logo {
   width: 46px; height: 46px; margin: 0 auto 8px;
   border-radius: 6px; border-width: 2px;
