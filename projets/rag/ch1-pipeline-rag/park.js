@@ -197,7 +197,7 @@
 
     { id: 'chunker', name: 'Découpeuse', act: 1, tag: 'Ingestion', x: 33, y: 10, r: 5,
       short: 'Découper le texte en chunks : des unités de connaissance.',
-      body: 'Le texte est découpé en morceaux de 256 à 1024 tokens, avec 10 à 20 % de chevauchement pour ne pas couper une idée en deux. Le découpage suit la structure (sections, paragraphes) quand c\u2019est possible. Chaque chunk devient une unité de connaissance que la recherche pourra retrouver.',
+      body: 'Le texte est découpé en morceaux (typiquement 90 mots, avec 15 mots de chevauchement) pour ne pas couper une idée en deux. Le découpage suit la structure (sections, paragraphes) quand c\u2019est possible. Chaque chunk conserve un identifiant, la provenance du document et sa position : \u00ab chunk 3 du contrat X, mots 180 \u00e0 270 \u00bb.',
       tip: 'C\u2019est le réglage le plus important du RAG : de mauvais chunks garantissent de mauvaises réponses, même avec les meilleurs embeddings. Les chunks plus petits (256 tokens) gagnent en précision sur les faits précis ; les plus gros gardent le contexte.' },
 
     { id: 'enricher', name: 'Enrichisseur', act: 1, tag: 'Ingestion', x: 42, y: 10, r: 5,
@@ -221,9 +221,9 @@
       tip: 'Déjà sur PostgreSQL ? pgvector suffit souvent. Filtres complexes et scale-out ? Qdrant ou Pinecone. Le choix dépend de l\u2019existant plus que du battage médiatique.' },
 
     { id: 'filter', name: 'Salle des filtres', act: 2, tag: 'Indexation', x: 26, y: 17.5, r: 5,
-      short: 'Les droits d\u2019accès s\u2019appliquent dès la recherche.',
-      body: 'Avant même de chercher, les métadonnées servent de verrous : chaque utilisateur ne peut voir que les chunks que ses permissions autorisent — source, service, niveau de confidentialité. La recherche n\u2019atteint jamais ce qui est interdit.',
-      tip: 'C\u2019est ici que se joue la sécurité. Un RAG qui ignore les droits d\u2019accès fuit des documents confidentiels. Le filtrage par métadonnées avant le reranking améliore aussi la précision.' },
+          short: 'Les droits d\u2019acc\u00e8s s\u2019appliquent dans les deux index, avant la fusion.',
+          body: 'Les m\u00e9tadonn\u00e9es portent les permissions : service, niveau de confidentialit\u00e9, date d\u2019effet. Ces filtres s\u2019appliquent aux deux index (lexical ET vectoriel) avant la fusion des r\u00e9sultats. Un document interdit ne doit jamais appara\u00eetre dans une liste de candidats, m\u00eame bri\u00e8vement.',
+          tip: 'Filtrer apr\u00e8s la fusion est une fuite de s\u00e9curit\u00e9 : le contenu du document interdit a d\u00e9j\u00e0 \u00e9t\u00e9 embedd\u00e9, class\u00e9 et potentiellement envoy\u00e9 au mod\u00e8le. Les filtres pr\u00e9c\u00e8dent toujours la recherche, pas l\u2019inverse.' },
 
     { id: 'query', name: 'Porte des questions', act: 3, tag: 'La boucle de recherche', x: 23, y: 22.5, r: 4.5,
       short: 'Une question arrive. Elle entre dans le même espace sémantique.',
@@ -236,14 +236,14 @@
       tip: '« Le truc pour connecter la base » devient « procédure de connexion à la base de données ». La qualité de la recherche commence ici.' },
 
     { id: 'hybrid', name: 'Chercheur hybride', act: 3, tag: 'La boucle de recherche', x: 39, y: 22.5, r: 5.5,
-      short: 'Deux recherches en parallèle : les mots exacts et le sens.',
-      body: 'Deux moteurs tournent en même temps. BM25 cherche les mots-clés exacts : parfait pour les noms propres, codes, acronymes, numéros de référence. Le vectoriel cherche le sens : parfait pour les synonymes et les formulations différentes. Chacun renvoie ses candidats.',
-      tip: 'Le vectoriel seul rate les codes et acronymes ; le BM25 seul rate les synonymes. Ensemble ils couvrent les deux cas — c\u2019est la recherche hybride, standard en production.' },
+      short: 'Deux signaux en parall\u00e8le : les mots exacts et le sens.',
+      body: 'Deux moteurs interrogent les m\u00eames chunks en parall\u00e8le. BM25 cherche les termes exacts : noms propres, codes, r\u00e9f\u00e9rences, acronymes. Le vectoriel cherche le sens : synonymes, reformulations, concepts. Chacun renvoie sa liste de candidats avec son propre classement. Les index partagent les m\u00eames unit\u00e9s et les m\u00eames filtres, sinon la fusion m\u00e9lange des objets incomparables.',
+      tip: 'Les deux signaux \u00e9chouent sur des cas oppos\u00e9s : BM25 ne voit pas les synonymes, le vectoriel dilue les codes exacts. C\u2019est pourquoi la recherche hybride est le standard en production.' },
 
     { id: 'rrf', name: 'Fusionneur RRF', act: 3, tag: 'La boucle de recherche', x: 36, y: 33, r: 4.5,
-      short: 'Fusionner les deux listes de rangs en une seule.',
-      body: 'La fusion par rangs réciproques (Reciprocal Rank Fusion) combine les deux classements : un chunk bien classé dans les deux listes remonte en tête, un chunk classé par un seul moteur reste honorable. Pas besoin de comparer des scores qui n\u2019ont pas la même échelle.',
-      tip: 'Fusionner par rangs plutôt que par scores est robuste : les scores BM25 et les distances vectorielles ne sont pas comparables, mais les positions, si.' },
+      short: 'Fusionner les deux listes de rangs en une seule, sans additionner les scores.',
+      body: 'La fusion par rangs réciproques (Reciprocal Rank Fusion) combine les deux classements en n\u2019utilisant que les rangs : un chunk classé 1er dans une liste et 3e dans l\u2019autre reçoit un score de fusion de 1/(k+1) + 1/(k+3). Pas besoin de normaliser des scores BM25 et cosinus qui n\u2019ont pas la m\u00eame \u00e9chelle. Les chunks pr\u00e9sents dans les deux listes sont favoris\u00e9s.',
+      tip: 'Additionner des scores BM25 et des distances vectorielles n\u2019a aucun sens math\u00e9matique. La fusion par rangs \u00e9vite ce pi\u00e8ge et reste robuste m\u00eame quand les \u00e9chelles d\u00e9rivent.' },
 
     { id: 'rerank', name: 'Reranker', act: 3, tag: 'La boucle de recherche', x: 28, y: 33, r: 4.5,
       short: 'Un cross-encoder relit la question et chaque candidat ensemble.',
@@ -271,9 +271,9 @@
       tip: 'En entreprise, le choix d\u2019hébergement — cloud ou local — est souvent dicté par la souveraineté des données. Le RAG fonctionne avec un modèle plus petit et plus rapide qu\u2019un modèle généraliste géant.' },
 
     { id: 'cite', name: 'Atelier citations', act: 4, tag: 'Génération', x: 40, y: 39, r: 5,
-      short: 'Chaque affirmation est reliée à sa source.',
-      body: 'La réponse est passée au crible : chaque affirmation est reliée au chunk qui la soutient, donc au document et à la page d\u2019origine. Si le contexte ne contient pas la réponse, le modèle doit le dire au lieu d\u2019inventer. La réponse sort avec ses références.',
-      tip: 'Les citations sont la différence entre un prototype et un outil d\u2019entreprise : elles permettent la vérification humaine. « Page 12 du rapport 2024 » vaut mieux que « selon nos sources ». ' },
+      short: 'Chaque affirmation est reliée à sa source, chaque citation vérifiée.',
+      body: 'La r\u00e9ponse est pass\u00e9e au crible : chaque affirmation doit \u00eatre soutenue par un chunk du contexte. L\u2019application v\u00e9rifie que chaque citation existe r\u00e9ellement et que le passage cit\u00e9 soutient bien l\u2019affirmation. Si le contexte ne contient pas la r\u00e9ponse, le mod\u00e8le doit s\u2019abstenir au lieu d\u2019inventer. Une r\u00e9ponse sans source ou avec une source insuffisante est bloqu\u00e9e.',
+      tip: 'Une citation n\u2019est utile que si elle pointe vers un passage v\u00e9rifiable. V\u00e9rifiez que l\u2019identifiant existe et que le passage soutient la phrase. L\u2019abstention est une sortie valide : inventer transforme un \u00e9chec de recherche en erreur silencieuse de g\u00e9n\u00e9ration.' },
 
     { id: 'guard', name: 'Salle des garde-fous', act: 4, tag: 'Génération', x: 49, y: 39, r: 5,
       short: 'La réponse est vérifiée avant de sortir : PII, ton, pertinence.',
