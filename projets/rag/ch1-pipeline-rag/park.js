@@ -218,7 +218,7 @@
     { id: 'vector', name: 'Base vectorielle', act: 2, tag: 'Indexation', x: 36, y: 17.5, r: 5,
       short: 'Ranger les vecteurs avec un index HNSW : retrouver en moins de 100 ms.',
       body: 'Les vecteurs sont stockés dans une base vectorielle — pgvector, Qdrant, Pinecone, Weaviate — avec un index HNSW (graphe hiérarchique). Retrouver les vecteurs les plus proches prend moins de 100 ms, même sur des millions de chunks.',
-      tip: 'Déjà sur PostgreSQL ? pgvector suffit souvent. Filtres complexes et scale-out ? Qdrant ou Pinecone. Le choix dépend de l\u2019existant plus que du battage médiatique.' },
+      tip: 'Déjà sur PostgreSQL ? pgvector suffit souvent. Filtres complexes et scale-out ? Qdrant ou Pinecone. Le choix dépend de l\u2019existant plus que du battage médiatique. Une base SQL à fédérer ? un moteur comme Spice.ai combine SQL, embeddings et recherche vectorielle, sans base vectorielle à part.' },
 
     { id: 'filter', name: 'Salle des filtres', act: 2, tag: 'Indexation', x: 26, y: 17.5, r: 5,
           short: 'Les droits d\u2019acc\u00e8s s\u2019appliquent dans les deux index, avant la fusion.',
@@ -252,7 +252,7 @@
 
     { id: 'rights', name: 'Contrôle des droits', act: 3, tag: 'La boucle de recherche', x: 21, y: 33, r: 4.5,
       short: 'Vérifier que chaque chunk retenu est autorisé pour cet utilisateur.',
-      body: 'Avant de remonter les résultats, une dernière passe vérifie les permissions : les chunks du top sont comparés aux droits de l\u2019utilisateur et de son service. Ce qui est interdit est écarté, ce qui reste est garanti lisible par la personne.',
+      body: 'Avant de remonter les résultats, une dernière passe vérifie les permissions : les chunks du top sont comparés aux droits de l\u2019utilisateur et de son service. Ce qui est interdit est écarté, ce qui reste est garanti lisible par la personne. Un graphe de relations (utilisateur \u2192 document) permet de répondre CheckPermission sur chaque chunk, plutôt qu\u2019un rôle global.',
       tip: 'La sécurité ne se corrige pas après coup : un chunk confidentiel dans le prompt d\u2019un LLM est déjà une fuite, même si la réponse finale ne le répète pas.' },
 
     { id: 'loopct', name: 'Le Compteur de boucle', act: 3, tag: 'La boucle de recherche', x: 13, y: 25, r: 4.5,
