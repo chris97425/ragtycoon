@@ -99,11 +99,13 @@
         { n: 'pgvector', u: 'https://github.com/pgvector/pgvector', d: 'vecteurs dans PostgreSQL : ACID, JOINs, index HNSW/IVFFlat' },
         { n: 'Qdrant', u: 'https://qdrant.tech/', d: 'base vectorielle dédiée, filtres riches, HNSW < 100 ms' },
         { n: 'Milvus', u: 'https://milvus.io/', d: 'passage à l\u2019échelle distribué pour les gros volumes' },
-        { n: 'Chroma', u: 'https://www.trychroma.com/', d: 'la plus simple pour prototyper en local' }
+        { n: 'Chroma', u: 'https://www.trychroma.com/', d: 'la plus simple pour prototyper en local' },
+        { n: 'Spice.ai', u: 'https://github.com/spiceai/spiceai', d: 'moteur SQL + vecteurs + RAG (DataFusion) : embeddings et vector_search intégrés' }
       ],
       refs: [
         { t: 'HNSW — article original (arXiv)', u: 'https://arxiv.org/abs/1603.09320', d: 'l\u2019algorithme derrière la plupart des index vectoriels modernes' },
-        { t: 'pgvector — dépôt', u: 'https://github.com/pgvector/pgvector', d: 'rester dans Postgres quand on a déjà tout dedans' }
+        { t: 'pgvector — dépôt', u: 'https://github.com/pgvector/pgvector', d: 'rester dans Postgres quand on a déjà tout dedans' },
+        { t: 'Spice.ai — recherche vectorielle', u: 'https://spiceai.org/docs/features/search/vector-search', d: 'embeddings et vector_search SQL pour un RAG collé aux données existantes' }
       ]
     },
 
@@ -180,10 +182,12 @@
       tools: [
         { n: 'Keycloak', u: 'https://www.keycloak.org/', d: 'SSO + rôles : qui a le droit de poser quelle question' },
         { n: 'OPA (Open Policy Agent)', u: 'https://www.openpolicyagent.org/', d: 'politiques d\u2019autorisation déclaratives, appliquées avant la recherche' },
-        { n: 'OpenFGA', u: 'https://openfga.dev/', d: 'autorisations fines à la Zanzibar (relationnelles, par document)' }
+        { n: 'OpenFGA', u: 'https://openfga.dev/', d: 'autorisations fines à la Zanzibar (relationnelles, par document)' },
+        { n: 'SpiceDB', u: 'https://authzed.com/spicedb', d: 'moteur Zanzibar : tuples de relations, CheckPermission et LookupResources par document' }
       ],
       refs: [
-        { t: 'OpenFGA — modèle de permissions', u: 'https://openfga.dev/', d: 'penser les droits par document, pas seulement par rôle' }
+        { t: 'OpenFGA — modèle de permissions', u: 'https://openfga.dev/', d: 'penser les droits par document, pas seulement par rôle' },
+        { t: 'SpiceDB — sécuriser un pipeline RAG', u: 'https://authzed.com/docs/spicedb/tutorials/secure-rag-pipelines', d: 'pré-filtrer (LookupResources) et post-filtrer (CheckPermission) les chunks' }
       ]
     },
 
