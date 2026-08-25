@@ -1222,6 +1222,7 @@
   global.Park = {
     C: C, BOUNDS: BOUNDS, GROUND: GROUND, LOTS: LOTS,
     cargoLabels: CARGO_LABELS, loopCargo: LOOP_CARGO,
+    ACT_NAMES: { 1: 'Acte 1 · L\u2019ingestion', 2: 'Acte 2 · La supervision' },
     routes: ROUTES, stations: STATIONS,
     stops: STOPS, stopById: STOP_BY_ID,
     buildings: B,

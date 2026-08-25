@@ -214,14 +214,14 @@
   </div>
 </div>
 
-<script src="../../../js/iso.js?v=17"></script>
-<script src="park.js?v=17"></script>
-<script src="technos.js?v=17"></script>
-<script src="../../../js/tour.js?v=17"></script>
-<script src="../../../js/render.js?v=17"></script>
-<script src="../../../js/ui.js?v=17"></script>
-<script src="../../../js/main.js?v=17"></script>
-<script src="../../../js/pixel-guy.js?v=17"></script>
+<script src="../../../js/iso.js?v=18"></script>
+<script src="park.js?v=18"></script>
+<script src="technos.js?v=18"></script>
+<script src="../../../js/tour.js?v=18"></script>
+<script src="../../../js/render.js?v=18"></script>
+<script src="../../../js/ui.js?v=18"></script>
+<script src="../../../js/main.js?v=18"></script>
+<script src="../../../js/pixel-guy.js?v=18"></script>
 <script>
 /* Mon parcours : une case « j'ai compris » par arrêt, persistée en
    localStorage. Clic sur le nom → le train va à l'arrêt. */
@@ -410,23 +410,33 @@
 
   /* --- lecture automatique à chaque arrêt --- */
   function playFor(stopId) {
-    /* Chapitre 2 : les textes parlès sont dans narration.json (synthèse TTS
-       externe plus tard). Pas de fichier audio ici : on affiche le texte
-       et on évite un 404 qui tuerait le lecteur. */
+    /* Narration : les mp3 vivent dans audio/stop-<id>.mp3 (synthèse Inworld v2).
+       Le texte de narration.json reste affiché dans la piste quand dispo.
+       Si le fichier manque (404), le gestionnaire « error » garde le texte. */
     if (!stopId || !Park.stopById[stopId]) return;
-    if (stopId === currentSrc) return;
-    currentSrc = stopId;
+    var src = 'audio/stop-' + stopId + '.mp3';
+    if (src === currentSrc && !audio.paused) return;
+    currentSrc = src;
     var stop = Park.stopById[stopId];
     var spoken = NARRATION[stopId];
     el.track.textContent = spoken || ((stop ? stop.name + ' — ' : '') + 'Arrêt ' +
       (Park.stops.indexOf(stop) + 1) + '/' + Park.stops.length);
+    audio.src = src;
+    ensureAnalyser();
+    playRetries = 0;
+    tryPlay();
+  }
+
+  /* filet : un mp3 absent ne doit pas tuer le lecteur (piste texte conservée) */
+  audio.addEventListener('error', function () {
+    if (!audio.src) return;
     audio.removeAttribute('src');
     audio.pause();
     el.play.textContent = '▶';
     el.slider.value = 0;
     el.cur.textContent = '0:00';
     el.dur.textContent = '0:00';
-  }
+  });
 
   Tour.on(function (name, id) {
     if (name === 'stage') playFor(id);
