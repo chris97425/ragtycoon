@@ -100,7 +100,9 @@
     el.pinNote.hidden = !isPin;
   }
 
-  var ACT_NAME = { 1: 'Acte 1 · Du document brut aux chunks', 2: 'Acte 2 · L\u2019indexation',
+  /* Noms d'actes : le chapitre peut fournir Park.ACT_NAMES (ex. ch2 socle technique) ;
+     sinon, fallback sur les noms du chapitre 1 (rétrocompatible). */
+  var ACT_NAME = (Park && Park.ACT_NAMES) || { 1: 'Acte 1 · Du document brut aux chunks', 2: 'Acte 2 · L\u2019indexation',
                    3: 'Acte 3 · La boucle de recherche', 4: 'Acte 4 · La génération',
                    5: 'Acte 5 · Livraison et évaluation' };
 
