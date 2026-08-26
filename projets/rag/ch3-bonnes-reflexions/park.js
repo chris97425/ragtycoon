@@ -816,6 +816,7 @@
     loopExitStopId: 'preembedding',
     finalStopId: 'synthese',
     hud: mindmapHud,
+    detailHeading: function (stop) { return stop.name + ' — sur la mindmap'; },
     skipRoadFurniture: true,
     routeStyles: ROUTE_STYLES,
     cargoLabels: {},

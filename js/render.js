@@ -670,7 +670,8 @@
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 11px "Trebuchet MS", Verdana, sans-serif';
     ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-    ctx.fillText('\ud83d\udd0d ' + stop.name + ' — dans le document', x + 8, y + DETAIL_TB / 2 + 1);
+    ctx.fillText('\ud83d\udd0d ' + ((Park.detailHeading && Park.detailHeading(stop)) ||
+      (stop.name + ' — dans le document')), x + 8, y + DETAIL_TB / 2 + 1);
     /* fake XP window buttons */
     ctx.fillStyle = 'rgba(255,255,255,0.9)';
     ctx.font = 'bold 10px "Trebuchet MS", Verdana, sans-serif';
