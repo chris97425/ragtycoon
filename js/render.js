@@ -64,26 +64,30 @@
       }
     }
 
-    /* Lamp posts follow the roads at a steady spacing, the way park lighting
-       actually does, rather than being scattered across open grass. */
-    Object.keys(Park.routes).forEach(function (k) {
-      var r = Park.routes[k];
-      for (var d = 4; d < r.total - 3; d += 11) {
-        var p = r.at(d);
-        var lx = p.x - p.dy * 1.9, ly = p.y + p.dx * 1.9;
-        if (!clearOfLots(lx, ly, 0.5)) continue;
-        out.push({ kind: 'lamp', x: lx, y: ly, s: 1 });
-      }
-    });
+    /* Factory-plaza lamps and benches sit on the retrieval ring. A mindmap
+       chapter can opt out so the centre stays readable (ch1/ch2 unchanged). */
+    if (!Park.skipRoadFurniture) {
+      Object.keys(Park.routes).forEach(function (k) {
+        var sty = (Park.routeStyles && Park.routeStyles[k]) || {};
+        if (sty.hidden) return;
+        var r = Park.routes[k];
+        for (var d = 4; d < r.total - 3; d += 11) {
+          var p = r.at(d);
+          var lx = p.x - p.dy * 1.9, ly = p.y + p.dx * 1.9;
+          if (!clearOfLots(lx, ly, 0.5)) continue;
+          out.push({ kind: 'lamp', x: lx, y: ly, s: 1 });
+        }
+      });
 
-    /* benches and lamps facing the plaza in the middle of the ring */
-    for (var i = 0; i < 6; i++) {
-      out.push({ kind: 'bench', x: 22 + i * 3.4, y: 26.2, s: 1 });
-      out.push({ kind: 'bench', x: 22 + i * 3.4, y: 30.2, s: 1 });
+      /* benches and lamps facing the plaza in the middle of the ring */
+      for (var i = 0; i < 6; i++) {
+        out.push({ kind: 'bench', x: 22 + i * 3.4, y: 26.2, s: 1 });
+        out.push({ kind: 'bench', x: 22 + i * 3.4, y: 30.2, s: 1 });
+      }
+      [[20.5, 25.4], [43, 25.4], [20.5, 31], [43, 31]].forEach(function (p) {
+        out.push({ kind: 'lamp', x: p[0], y: p[1], s: 1 });
+      });
     }
-    [[20.5, 25.4], [43, 25.4], [20.5, 31], [43, 31]].forEach(function (p) {
-      out.push({ kind: 'lamp', x: p[0], y: p[1], s: 1 });
-    });
     return out;
   }
 
