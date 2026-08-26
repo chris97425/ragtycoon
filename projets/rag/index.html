@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>RAG &amp; IA d'entreprise — RAGTycoon</title>
 <meta name="description" content="Projet RAG & IA d'entreprise : apprendre en fabriquant une architecture RAG de niveau entreprise. Chapitres interactifs en simulation isométrique." />
-<link rel="stylesheet" href="../../css/xp.css?v=16" />
-<link rel="stylesheet" href="../../css/styles.css?v=16" />
+<link rel="stylesheet" href="../../css/xp.css?v=19" />
+<link rel="stylesheet" href="../../css/styles.css?v=19" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%232f3945'/%3E%3Crect x='9' y='9' width='14' height='14' rx='2' fill='%233fb5a0'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -55,6 +55,20 @@
     </div>
   </div>
 
+  <div class="chapter-hero">
+    <div class="xp-titlebar">
+      <span class="xp-title-icon">▶</span>
+      <span>Chapitre 3 · Les bonnes réflexions — bien choisir son RAG</span>
+    </div>
+    <div class="hero-inner">
+      <h2>La mindmap qui évite de sur-construire son RAG</h2>
+      <p>Pars de cinq questions — fraîcheur, corpus, requêtes, échelle et équipe — puis compare six recettes du BM25 au pré-embedding complet. Les garde-fous te ramènent toujours aux preuves : 19 arrêts, environ 9 minutes, dans un arbre de décision isométrique.</p>
+      <a class="cta" href="ch3-bonnes-reflexions/index.html">▶ Explorer la mindmap</a>
+      <p class="controls-hint" style="margin-top:12px"><b>Rappel des contrôles :</b> Espace = pause · S = nœud suivant · R = recommencer ·
+        clic sur un nœud = son explication · molette = zoom · double-clic = vue complète.</p>
+    </div>
+  </div>
+
   <div class="section-title">Sommaire du parcours</div>
   <div class="card-grid">
 
@@ -84,17 +98,31 @@
       </div>
     </div>
 
-    <div class="card disabled">
-      <span class="badge-soon">Bientôt</span>
+    <a class="card" href="ch3-bonnes-reflexions/index.html">
       <div class="xp-titlebar">
         <span class="xp-title-icon">🧭</span>
         <span>Chapitre 3</span>
       </div>
       <div class="card-inner">
-        <span class="card-tag tag-ch3">Chapitre 3</span>
+        <span class="card-tag tag-ch3">Chapitre 3 · Disponible</span>
+        <h3>Les bonnes réflexions — bien choisir son RAG</h3>
+        <p>Cinq questions, six recettes et six garde-fous pour choisir entre BM25, rewriting, hybride, embedding à la volée, Hot/Cold et pré-embedding complet — sans sur-construire.</p>
+        <div class="card-meta">19 arrêts · ~9 min</div>
+        <span class="card-cta">▶ Explorer la mindmap</span>
+      </div>
+    </a>
+
+    <div class="card disabled">
+      <span class="badge-soon">Bientôt</span>
+      <div class="xp-titlebar">
+        <span class="xp-title-icon">🧬</span>
+        <span>Chapitre 4</span>
+      </div>
+      <div class="card-inner">
+        <span class="card-tag tag-ch4">Chapitre 4</span>
         <h3>Embeddings &amp; base vectorielle</h3>
-        <p>Modèles d'embedding, espaces sémantiques, index HNSW, choix de la base (pgvector, Qdrant, Pinecone), filtrage et droits.</p>
-        <div class="card-meta">Retrouver en moins de 100 ms</div>
+        <p>Modèles d’embedding, espaces sémantiques, chunking, distances, index HNSW, choix entre pgvector, Qdrant et Milvus, filtrage et droits.</p>
+        <div class="card-meta">18 arrêts · ~8 min</div>
       </div>
     </div>
 
@@ -102,13 +130,13 @@
       <span class="badge-soon">Bientôt</span>
       <div class="xp-titlebar">
         <span class="xp-title-icon">🔍</span>
-        <span>Chapitre 4</span>
+        <span>Chapitre 5</span>
       </div>
       <div class="card-inner">
-        <span class="card-tag tag-ch4">Chapitre 4</span>
+        <span class="card-tag tag-ch5">Chapitre 5</span>
         <h3>Recherche avancée &amp; RAG agentique</h3>
-        <p>Query rewriting, multi-query, recherche hybride BM25 + dense, RRF, reranking, GraphRAG, agents multi-sauts.</p>
-        <div class="card-meta">La boucle de recherche, en profondeur</div>
+        <p>Query rewriting, multi-query, recherche hybride BM25 + dense, RRF, reranking, GraphRAG, décomposition et agents multi-sauts.</p>
+        <div class="card-meta">20 arrêts · ~9 min</div>
       </div>
     </div>
 
@@ -116,18 +144,18 @@
       <span class="badge-soon">Bientôt</span>
       <div class="xp-titlebar">
         <span class="xp-title-icon">📊</span>
-        <span>Chapitre 5</span>
+        <span>Chapitre 6</span>
       </div>
       <div class="card-inner">
-        <span class="card-tag tag-ch5">Chapitre 5</span>
+        <span class="card-tag tag-ch6">Chapitre 6</span>
         <h3>Production, évaluation &amp; architecture Orange</h3>
-        <p>Observabilité, RAGAS, jeux de test, sécurité RGPD, choix d'hébergement — et le livrable : le document d'architecture.</p>
-        <div class="card-meta">Le livrable final pour le client</div>
+        <p>Observabilité, RAGAS, jeux de test, sécurité et RGPD, choix d’hébergement — puis le livrable final : le document d’architecture Orange.</p>
+        <div class="card-meta">18 arrêts · ~8 min</div>
       </div>
     </div>
 
   </div>
 
-<script src="../../js/pixel-guy.js?v=16"></script>
+<script src="../../js/pixel-guy.js?v=19"></script>
 </body>
 </html>

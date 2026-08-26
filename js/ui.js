@@ -206,8 +206,14 @@
       : 'on avance';
 
     el.hudStop.textContent = s.seenCount + ' / ' + Park.stops.length;
-    el.hudLayer.textContent = s.lap + ' sur ' + s.laps + ' passes';
-    el.hudBatch.textContent = '#' + s.batch;
+    if (Park.hud) {
+      var hud = Park.hud(s);
+      el.hudLayer.textContent = hud.layer;
+      el.hudBatch.textContent = hud.batch;
+    } else {
+      el.hudLayer.textContent = s.lap + ' sur ' + s.laps + ' passes';
+      el.hudBatch.textContent = '#' + s.batch;
+    }
     el.progressBar.style.width = (Tour.progress() * 100).toFixed(1) + '%';
 
     if (s.tourDone && !s.reading) {
