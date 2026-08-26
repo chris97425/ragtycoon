@@ -170,28 +170,38 @@
                        Iso.project(L.x + L.w, L.y + L.d, 0.003), Iso.project(L.x, L.y + L.d, 0.003)], true);
     }
 
-    /* the roads the cart drives */
+    /* the roads the cart drives — Park.routeStyles may restyle or hide a route */
     Object.keys(Park.routes).forEach(function (k) {
       var r = Park.routes[k];
-      ctx.fillStyle = C.pathEdge;
+      var st = (Park.routeStyles && Park.routeStyles[k]) || {};
+      if (st.hidden) return;
+      var edge = st.edge || C.pathEdge;
+      var fill = st.fill || C.path;
+      var dash = st.dash != null ? st.dash : 'rgba(120,96,60,0.35)';
+      var edgeW = st.edgeWidth != null ? st.edgeWidth : 2.6;
+      var fillW = st.width != null ? st.width : 2.2;
+      var dashed = !!st.dashed;
+      ctx.fillStyle = edge;
       for (var s = 0; s < r.segs.length; s++) {
         var g = r.segs[s];
-        Iso.ribbon(ctx, g.a.x, g.a.y, g.b.x, g.b.y, 2.6, 0.004);
+        Iso.ribbon(ctx, g.a.x, g.a.y, g.b.x, g.b.y, edgeW, 0.004);
       }
-      ctx.fillStyle = C.path;
+      ctx.fillStyle = fill;
       for (var s2 = 0; s2 < r.segs.length; s2++) {
         var g2 = r.segs[s2];
-        Iso.ribbon(ctx, g2.a.x, g2.a.y, g2.b.x, g2.b.y, 2.2, 0.005);
+        Iso.ribbon(ctx, g2.a.x, g2.a.y, g2.b.x, g2.b.y, fillW, 0.005);
       }
-      /* dashed centre line, like a park tramway */
-      ctx.fillStyle = 'rgba(120,96,60,0.35)';
-      for (var d = 0; d < r.total; d += 2.6) {
-        var p = r.at(d);
-        Iso.ribbon(ctx, p.x, p.y, p.x + p.dx * 0.9, p.y + p.dy * 0.9, 0.1, 0.006);
+      if (dashed || dash) {
+        ctx.fillStyle = dash;
+        var step = dashed ? 1.6 : 2.6;
+        var dashLen = dashed ? 0.55 : 0.9;
+        for (var d = 0; d < r.total; d += step) {
+          var p = r.at(d);
+          Iso.ribbon(ctx, p.x, p.y, p.x + p.dx * dashLen, p.y + p.dy * dashLen, dashed ? 0.18 : 0.1, 0.006);
+        }
       }
-      /* round off the corners so the joins do not show as notches */
-      ctx.fillStyle = C.path;
-      for (var p2 = 1; p2 < r.pts.length - 1; p2++) Iso.disc(ctx, r.pts[p2].x, r.pts[p2].y, 0.006, 1.1);
+      ctx.fillStyle = fill;
+      for (var p2 = 1; p2 < r.pts.length - 1; p2++) Iso.disc(ctx, r.pts[p2].x, r.pts[p2].y, 0.006, fillW * 0.5);
     });
   }
 
@@ -426,6 +436,10 @@
   }
 
   function drawCart(ctx, p, s, t) {
+    if (Park.draw && Park.draw.mover) {
+      Park.draw.mover(ctx, p, s, t);
+      return;
+    }
     if (hauling()) { drawLorry(ctx, p, s, t); return; }
     Iso.shadow(ctx, p.x, p.y, 1.1);
     var hx = p.dx || 1, hy = p.dy || 0;

@@ -553,6 +553,7 @@ a.card:hover { transform: translateY(-2px); box-shadow: inset -1px -1px #0a0a0a,
 .tag-ch3 { background: var(--act4); }
 .tag-ch4 { background: var(--act5); }
 .tag-ch5 { background: #5f6b78; }
+.tag-ch6 { background: #4a6670; }
 
 .chapter-hero {
   background: var(--xp-panel);

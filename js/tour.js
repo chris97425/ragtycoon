@@ -36,7 +36,7 @@
     stage: null,               // the stop currently being explained
     stageT: 0,
     cargo: 'empty',
-    laps: 3,                   // search passes actually driven; a real query runs many more
+    laps: Park.laps || 3,      // ch1/ch2 : 3 passes ; un chapitre peut réduire via Park.laps
     lap: 1,
     batch: 1,
 
@@ -99,7 +99,7 @@
     state.flash = 1;
     if (CARGO[st.id]) state.cargo = CARGO[st.id];
 
-    if (st.id === 'loopct') {
+    if (st.id === (Park.loopExitStopId || 'loopct')) {
       /* One lap of the ring is one search pass. The first pass is walked at
          full detail; the rest are the same road with a fresh query, so they
          run fast, exactly as a real RAG iterates on a question. */
@@ -114,7 +114,7 @@
         state.fastForward = true;
       }
     }
-    if (st.id === 'eval') {
+    if (st.id === (Park.finalStopId || 'eval')) {
       /* the last stop: one full pass has now explained every one of them */
       tour.done = true;
       state.tourDone = true;
