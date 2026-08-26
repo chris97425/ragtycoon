@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Chapitre 3 · Les bonnes réflexions — bien choisir son RAG — RAGTycoon</title>
+<meta name="description" content="Une mindmap 3D isométrique pour choisir son RAG : cinq questions, six recettes du BM25 au pré-embedding complet, puis six garde-fous. Dix-neuf arrêts, en français." />
+<link rel="stylesheet" href="../../../css/xp.css?v=19" />
+<link rel="stylesheet" href="../../../css/styles.css?v=19" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%232f3945'/%3E%3Crect x='9' y='9' width='14' height='14' rx='2' fill='%233fb5a0'/%3E%3C/svg%3E" />
+</head>
+<body>
+
+<canvas id="stage"></canvas>
+<div id="tooltip" class="tooltip" hidden></div>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo" aria-hidden="true"></div>
+    <div class="brand-text">
+      <h1>RAG<span>Tycoon</span></h1>
+      <p>Chapitre 3 · Les bonnes réflexions — bien choisir son RAG</p>
+    </div>
+  </div>
+  <div class="top-actions">
+    <a class="btn" href="../index.html" title="Revenir au sommaire du projet">☰ Sommaire</a>
+    <button id="btn-about" class="btn">À propos</button>
+    <button id="btn-panel" class="btn" aria-expanded="true">Masquer le guide</button>
+  </div>
+</header>
+
+<div class="hud" id="hud">
+  <div class="hud-item"><span class="k">Nœuds vus</span><span class="v" id="ui-hudStop">0 / 19</span></div>
+  <div class="hud-item"><span class="k">Zone</span><span class="v" id="ui-hudLayer">Questions</span></div>
+  <div class="hud-item"><span class="k">Boussole</span><span class="v" id="ui-hudBatch">Baseline d’abord</span></div>
+  <div class="hud-note" id="ui-hudNote"></div>
+</div>
+
+<div class="zoomer">
+  <button id="zoom-in" title="Zoomer" aria-label="Zoomer">+</button>
+  <button id="zoom-out" title="Dézoomer" aria-label="Dézoomer">−</button>
+  <button id="zoom-fit" title="Voir toute la mindmap (ou double-clic)" aria-label="Voir toute la mindmap">⤢</button>
+</div>
+
+<aside class="guide" id="guide">
+  <div class="xp-titlebar">
+    <span class="xp-title-icon">🗺️</span>
+    <span>Guide de la mindmap</span>
+    <span class="xp-title-spacer"></span>
+    <span class="xp-tb-btn">_</span><span class="xp-tb-btn">□</span><span class="xp-tb-btn">×</span>
+  </div>
+  <!-- Sur téléphone le guide est une feuille en bas : la tête reste visible et
+       tout ce qui est sous la poignée se replie, pour ne jamais enterrer la carte. -->
+  <button class="sheet-handle" id="sheet-handle" aria-expanded="false" aria-controls="guide-more">
+    <span class="grip" aria-hidden="true"></span>
+    <span class="sheet-label">Lire la suite</span>
+    <span class="sheet-caret" aria-hidden="true">▾</span>
+  </button>
+
+  <div class="guide-body">
+  <div class="stop-head">
+    <div class="eyebrow">
+      <span class="chip act1" id="ui-chip">Arrêt 1 sur 19</span>
+    </div>
+    <h2 id="ui-name">Quel RAG pour mon besoin ?</h2>
+    <p class="lede" id="ui-short"></p>
+
+    <div class="dwell" id="ui-dwell" hidden>
+      <div class="track"><i id="ui-dwellBar"></i></div>
+      <span id="ui-dwellHint"></span>
+    </div>
+  </div>
+
+  <div class="guide-more" id="guide-more">
+    <p class="body" id="ui-body"></p>
+    <p class="tip" id="ui-tip"></p>
+
+    <div class="pin-note" id="ui-pinNote" hidden>
+      Épinglé à ce nœud.
+      <button id="btn-unpin" class="link">Suivre le guide à nouveau</button>
+    </div>
+
+    <section class="sec tools-sec" id="ui-toolsSec" hidden>
+      <h3>🛠 Outillage open source <span class="hint">pour construire ce bloc</span></h3>
+      <ul class="tool-list" id="ui-tools"></ul>
+    </section>
+
+    <section class="sec refs-sec" id="ui-refsSec" hidden>
+      <h3>📚 Pour aller plus loin <span class="hint">articles et sources vérifiées</span></h3>
+      <ul class="ref-list" id="ui-refs"></ul>
+    </section>
+
+    <section class="sec">
+      <h3>Toute la mindmap <span class="hint">clique sur un nœud pour t’y rendre</span></h3>
+      <div class="stop-list" id="ui-stopList"></div>
+    </section>
+
+    <section class="sec">
+      <h3>Ce que tu regardes</h3>
+      <p class="fine">La boussole centrale pose la décision. Les cinq branches colorées qualifient la fraîcheur, le corpus, les requêtes, l’échelle et l’équipe. Les fiches extérieures sont six recettes, du BM25 au pré-embedding complet. L’arc de garde-fous rappelle le multi-intent, les migrations de modèles, le chunking, la latence et l’évaluation. Le guide marche de nœud en nœud : il ne transporte pas un document et la carte ne représente pas un pipeline.</p>
+    </section>
+  </div>
+  </div><!-- /guide-body -->
+</aside>
+
+<footer class="dock" id="dock">
+  <div class="progress"><i id="ui-progressBar"></i></div>
+  <div class="dock-row">
+    <div class="group">
+      <button id="btn-play" class="icon" title="Lecture ou pause (Espace)"><span id="ui-playGlyph">❙❙</span></button>
+      <button id="btn-step" class="icon" title="Passer au nœud suivant (S)">⇥</button>
+      <button id="btn-restart" class="icon" title="Recommencer la visite (R)">⟲</button>
+    </div>
+
+    <label class="field slider">
+      <span>Vitesse <b id="v-speed">1.0×</b></span>
+      <input id="speed" type="range" min="0.4" max="6" step="0.1" value="1" />
+    </label>
+
+    <div class="group toggles">
+      <label class="toggle"><input id="follow" type="checkbox" checked /><span>Suivre</span></label>
+      <label class="toggle"><input id="labels" type="checkbox" checked /><span>Nœuds</span></label>
+    </div>
+  </div>
+</footer>
+
+<!-- Lecteur de narration, style Windows Media Player XP : bloc en bas à gauche,
+     visualiseur « nuage de toutes les couleurs », pause / retour début / curseur. -->
+<div class="wmp" id="wmp">
+  <div class="xp-titlebar">
+    <span class="xp-title-icon">🎵</span>
+    <span>Narration — Windows Media</span>
+    <span class="xp-title-spacer"></span>
+    <span class="xp-tb-btn">_</span><span class="xp-tb-btn">×</span>
+  </div>
+  <div class="wmp-body">
+    <canvas id="wmp-viz" width="300" height="64"></canvas>
+    <div class="wmp-track" id="wmp-track">Chargement…</div>
+    <div class="wmp-time-row">
+      <span class="wmp-t" id="wmp-cur">0:00</span>
+      <input type="range" id="wmp-slider" min="0" max="1000" value="0" step="1" />
+      <span class="wmp-t" id="wmp-dur">0:00</span>
+    </div>
+    <div class="wmp-btns">
+      <button id="wmp-restart" class="icon" title="Revenir au début">⏮</button>
+      <button id="wmp-play" class="icon" title="Lecture / pause">▶</button>
+      <button id="wmp-mute" class="icon" title="Son activé / coupé">🔊</button>
+    </div>
+  </div>
+</div>
+
+<!-- Mon parcours : chaque nœud avec sa case « j’ai compris », enregistrée
+     dans le localStorage pour ne jamais être perdue. -->
+<div class="trail" id="trail">
+  <div class="xp-titlebar">
+    <span class="xp-title-icon">📋</span>
+    <span>Mon parcours</span>
+    <span class="xp-title-spacer"></span>
+    <span class="trail-count" id="trail-count">0 / 19</span>
+    <span class="xp-tb-btn">_</span><span class="xp-tb-btn">×</span>
+  </div>
+  <div class="trail-body" id="trail-body">
+    <p class="trail-hint">Coche chaque nœud quand tu l’as compris. Ta progression reste enregistrée sur cet appareil.</p>
+    <ul class="trail-list" id="trail-list"></ul>
+  </div>
+</div>
+
+<div class="modal" id="about" hidden>
+  <div class="modal-card">
+    <div class="xp-titlebar">
+      <span class="xp-title-icon">ℹ️</span>
+      <span>À propos de RAGTycoon</span>
+      <span class="xp-title-spacer"></span>
+      <button class="modal-close" id="about-close" aria-label="Fermer">×</button>
+    </div>
+    <div class="modal-inner">
+    <h2>Ce que c’est</h2>
+    <p>Ce chapitre est une mindmap de décision. Il ne montre pas comment un document traverse un pipeline : il apprend à choisir le retrieval adapté avant de construire. Le centre pose la question, cinq branches qualifient le besoin, six fiches proposent des recettes et six garde-fous empêchent la sur-ingénierie.</p>
+
+    <h2>Pourquoi une mindmap</h2>
+    <p>Un choix de RAG n’est pas une chaîne unique. Une même recette peut être influencée par la fraîcheur, la forme du corpus, les requêtes, l’échelle et les compétences disponibles. Les connexions colorées rendent ces influences visibles ; le sentier du guide donne seulement un ordre pédagogique.</p>
+
+    <h2>Rythme</h2>
+    <p>La première visite compte dix-neuf arrêts et dure environ neuf minutes. Le guide attend à chaque nouveau nœud assez longtemps pour lire l’explication ou écouter la narration. Espace maintient l’arrêt, S passe au suivant et le curseur de vitesse met le déplacement et le temps de lecture à l’échelle.</p>
+
+    <h2>Contrôles</h2>
+    <ul>
+      <li><b>Espace</b> : lecture ou pause. <b>S</b> : nœud suivant. <b>R</b> : recommencer. <b>F</b> : caméra suiveuse. <b>L</b> : étiquettes.</li>
+      <li>Glisser déplace la carte, la molette zoome et le double-clic cadre toute la mindmap.</li>
+      <li>La liste du guide permet de rejoindre directement un nœud.</li>
+    </ul>
+
+    <h2>À quel point c’est exact</h2>
+    <p>Les cinq facteurs, les six recettes, les ordres de grandeur et la règle 60/25/10/5 viennent de l’article « RAG Is Simpler Than You Think » de Rafael Pierre. Les seuils sont des repères pédagogiques, pas des garanties : un projet doit revalider ses tarifs, son corpus, ses SLO et ses mesures. La méthode RAGTycoon reste constante : baseline simple, jeu de test, changement isolé, décision documentée.</p>
+
+    <h2>Technique</h2>
+    <p>Aucune dépendance, aucun build et aucune API au runtime. Le parc, ses branches, ses panneaux, ses jauges et son guide sont dessinés avec des primitives dans un canvas. La narration et les données du chapitre sont des fichiers statiques servis avec la page.</p>
+    </div><!-- /modal-inner -->
+  </div>
+</div>
+
+<script src="../../../js/iso.js?v=19"></script>
+<script src="park.js?v=19"></script>
+<script src="technos.js?v=19"></script>
+<script src="../../../js/tour.js?v=19"></script>
+<script src="../../../js/render.js?v=19"></script>
+<script src="../../../js/ui.js?v=19"></script>
+<script src="../../../js/main.js?v=19"></script>
+<script src="../../../js/pixel-guy.js?v=19"></script>
+<script>
+/* Mon parcours : une case « j’ai compris » par nœud, persistée en
+   localStorage. Clic sur le nom → le guide va au nœud. */
+(function () {
+  'use strict';
+  var KEY = 'ragtycoon.ch3.ok';
+  var done = {};
+  try { done = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { done = {}; }
+
+  var list = document.getElementById('trail-list');
+  var count = document.getElementById('trail-count');
+
+  function save() { localStorage.setItem(KEY, JSON.stringify(done)); }
+  function paint() {
+    var n = 0;
+    Park.stops.forEach(function (s) { if (done[s.id]) n++; });
+    count.textContent = n + ' / ' + Park.stops.length;
+    var items = list.children;
+    for (var i = 0; i < items.length; i++) {
+      items[i].classList.toggle('done', !!done[items[i].dataset.id]);
+    }
+  }
+
+  Park.stops.forEach(function (s, i) {
+    var li = document.createElement('li');
+    li.dataset.id = s.id;
+    var lab = document.createElement('label');
+    lab.className = 'xp-check';
+    lab.title = 'J\u2019ai compris ce nœud';
+    var cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = !!done[s.id];
+    cb.addEventListener('change', function () {
+      done[s.id] = cb.checked;
+      save(); paint();
+    });
+    var box = document.createElement('span');
+    lab.appendChild(cb); lab.appendChild(box);
+    var n = document.createElement('span');
+    n.className = 'n'; n.textContent = (i + 1) + '.';
+    var nm = document.createElement('span');
+    nm.className = 'nm'; nm.textContent = s.name;
+    li.appendChild(lab); li.appendChild(n); li.appendChild(nm);
+    li.addEventListener('click', function () {
+      Tour.jumpTo(s.id);
+    });
+    list.appendChild(li);
+  });
+
+  Tour.on(function (name, id) {
+    if (name !== 'stage') return;
+    var items = list.children;
+    for (var i = 0; i < items.length; i++) {
+      items[i].classList.toggle('act', items[i].dataset.id === id);
+    }
+  });
+
+  paint();
+})();
+</script>
+<script>
+/* Lecteur de narration style Windows Media Player XP.
+   - Lecture automatique du nœud courant quand le guide s’arrête
+   - Visualiseur « nuage de toutes les couleurs » (spectre multicolore)
+   - Boutons : revenir au début / lecture-pause / son coupé
+   - Curseur de position + temps écoulé / durée
+   Les navigateurs bloquent l’autoplay : le premier geste débloque. */
+(function () {
+  'use strict';
+
+  var audio = document.createElement('audio');
+  audio.preload = 'auto';
+  document.body.appendChild(audio);
+
+  var soundOn = true;
+  var currentSrc = null;
+  var NARRATION = {};
+  fetch('narration.json').then(function (r) { return r.ok ? r.json() : {}; })
+    .then(function (j) { NARRATION = j || {}; })
+    .catch(function () { NARRATION = {}; });
+
+  var el = {
+    track: document.getElementById('wmp-track'),
+    cur: document.getElementById('wmp-cur'),
+    dur: document.getElementById('wmp-dur'),
+    slider: document.getElementById('wmp-slider'),
+    play: document.getElementById('wmp-play'),
+    restart: document.getElementById('wmp-restart'),
+    mute: document.getElementById('wmp-mute'),
+    viz: document.getElementById('wmp-viz')
+  };
+  var vizCtx = el.viz.getContext('2d');
+
+  var analyser = null;
+  var freqData = null;
+  function ensureAnalyser() {
+    if (analyser) return;
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      var ctx = new AC();
+      var src = ctx.createMediaElementSource(audio);
+      analyser = ctx.createAnalyser();
+      analyser.fftSize = 128;
+      src.connect(analyser);
+      analyser.connect(ctx.destination);
+      freqData = new Uint8Array(analyser.frequencyBinCount);
+    } catch (e) { /* pas d’analyse : le nuage reste décoratif */ }
+  }
+
+  function fmt(s) {
+    s = Math.max(0, Math.floor(s || 0));
+    var m = Math.floor(s / 60), sec = s % 60;
+    return m + ':' + (sec < 10 ? '0' : '') + sec;
+  }
+
+  var playRetries = 0;
+  function tryPlay() {
+    var p = audio.play();
+    if (p && p.catch) p.catch(function () {
+      if (playRetries < 12) {
+        playRetries++;
+        setTimeout(tryPlay, 500);
+      }
+    });
+  }
+
+  el.play.addEventListener('click', function () {
+    if (audio.paused) {
+      ensureAnalyser();
+      playRetries = 0;
+      tryPlay();
+    } else {
+      playRetries = 99;
+      audio.pause();
+    }
+  });
+  el.restart.addEventListener('click', function () {
+    if (!audio.src) return;
+    audio.currentTime = 0;
+    ensureAnalyser();
+    playRetries = 0;
+    tryPlay();
+  });
+  el.mute.addEventListener('click', function () {
+    soundOn = !soundOn;
+    el.mute.textContent = soundOn ? '🔊' : '🔇';
+    el.mute.title = soundOn ? 'Son activé' : 'Son coupé';
+    audio.muted = !soundOn;
+  });
+
+  var dragging = false;
+  el.slider.addEventListener('pointerdown', function () { dragging = true; });
+  el.slider.addEventListener('pointerup', function () { dragging = false; });
+  el.slider.addEventListener('input', function () {
+    if (!audio.duration) return;
+    audio.currentTime = (el.slider.value / 1000) * audio.duration;
+  });
+
+  audio.addEventListener('timeupdate', function () {
+    if (dragging || !audio.duration) return;
+    el.slider.value = Math.round((audio.currentTime / audio.duration) * 1000);
+    el.cur.textContent = fmt(audio.currentTime);
+  });
+  audio.addEventListener('loadedmetadata', function () {
+    el.dur.textContent = fmt(audio.duration);
+  });
+  audio.addEventListener('ended', function () {
+    el.play.textContent = '▶';
+    el.slider.value = 0;
+    el.cur.textContent = '0:00';
+  });
+  audio.addEventListener('play', function () { el.play.textContent = '⏸'; });
+  audio.addEventListener('pause', function () { el.play.textContent = '▶'; });
+
+  function playFor(stopId) {
+    /* Narration : les mp3 vivent dans audio/stop-<id>.mp3 (synthèse hors ligne).
+       Le texte de narration.json reste affiché dans la piste quand dispo.
+       Si le fichier manque (404), le gestionnaire « error » garde le texte. */
+    if (!stopId || !Park.stopById[stopId]) return;
+    var src = 'audio/stop-' + stopId + '.mp3';
+    if (src === currentSrc && !audio.paused) return;
+    currentSrc = src;
+    var stop = Park.stopById[stopId];
+    var spoken = NARRATION[stopId];
+    el.track.textContent = spoken || ((stop ? stop.name + ' — ' : '') + 'Arrêt ' +
+      (Park.stops.indexOf(stop) + 1) + '/' + Park.stops.length);
+    audio.src = src;
+    ensureAnalyser();
+    playRetries = 0;
+    tryPlay();
+  }
+
+  /* filet : un mp3 absent ne doit pas tuer le lecteur (piste texte conservée) */
+  audio.addEventListener('error', function () {
+    if (!audio.src) return;
+    audio.removeAttribute('src');
+    audio.pause();
+    el.play.textContent = '▶';
+    el.slider.value = 0;
+    el.cur.textContent = '0:00';
+    el.dur.textContent = '0:00';
+  });
+
+  Tour.on(function (name, id) {
+    if (name === 'stage') playFor(id);
+  });
+
+  function unlock() {
+    ensureAnalyser();
+    if (audio.src && audio.paused && soundOn && playRetries < 99) {
+      tryPlay();
+    }
+  }
+  ['pointerdown', 'keydown', 'touchend'].forEach(function (ev) {
+    document.addEventListener(ev, unlock, { passive: true });
+  });
+
+  var BARS = 48;
+  var RAINBOW = [];
+  function rainbow(i, n) {
+    var t = i / n;
+    var r, g, b;
+    if (t < 1/6) { r = 255; g = Math.round(255 * t * 6); b = 0; }
+    else if (t < 2/6) { r = Math.round(255 * (1 - (t-1/6)*6)); g = 255; b = 0; }
+    else if (t < 3/6) { r = 0; g = 255; b = Math.round(255 * (t-2/6)*6); }
+    else if (t < 4/6) { r = 0; g = Math.round(255 * (1-(t-3/6)*6)); b = 255; }
+    else if (t < 5/6) { r = Math.round(255 * (t-4/6)*6); g = 0; b = 255; }
+    else { r = 255; g = 0; b = Math.round(255 * (1-(t-5/6)*6)); }
+    return 'rgb(' + r + ',' + g + ',' + b + ')';
+  }
+  for (var ri = 0; ri < BARS; ri++) RAINBOW.push(rainbow(ri, BARS));
+
+  var vizT = 0;
+  function drawViz() {
+    requestAnimationFrame(drawViz);
+    var W = el.viz.width, H = el.viz.height;
+    vizCtx.fillStyle = '#000';
+    vizCtx.fillRect(0, 0, W, H);
+    vizT += 0.02;
+
+    var playing = !audio.paused && !audio.ended && audio.currentTime > 0;
+    var vals = null;
+    if (analyser && freqData && playing) {
+      analyser.getByteFrequencyData(freqData);
+      vals = freqData;
+    }
+
+    var bw = W / BARS;
+    for (var i = 0; i < BARS; i++) {
+      var v;
+      if (vals) {
+        var idx = Math.floor(i * vals.length / BARS);
+        v = vals[idx] / 255;
+        v = 0.15 + v * 0.85;
+      } else {
+        v = 0.08 + 0.12 * Math.abs(Math.sin(vizT * 2 + i * 0.45));
+      }
+      var h = Math.max(2, v * (H - 4));
+      var x = i * bw + 0.5;
+      vizCtx.fillStyle = RAINBOW[i];
+      vizCtx.fillRect(x, H - h, bw - 1, h);
+      vizCtx.fillStyle = 'rgba(255,255,255,0.35)';
+      vizCtx.fillRect(x, H - h, bw - 1, Math.max(1, h * 0.12));
+    }
+  }
+  drawViz();
+})();
+</script>
+</body>
+</html>
